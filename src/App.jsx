@@ -7,6 +7,7 @@ import RecruiterAuthPage from "./pages/auth/RecruiterAuthPage";
 import RecruiterOnboarding from "./pages/auth/RecruiterOnboarding";
 import RecruiterDashboard from "./pages/recruiter/dashboard/RecruiterDashboard";
 import NotFound from "./pages/NotFound";
+import LandingPage from "./pages/LandingPage";
 
 const App = () => {
   return (
@@ -24,6 +25,7 @@ const App = () => {
         />
 
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route element={<PublicRoute />}>
             <Route path="/auth" element={<RecruiterAuthPage />} />
           </Route>
