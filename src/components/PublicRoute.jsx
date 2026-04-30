@@ -19,5 +19,9 @@ export const PublicRoute = () => {
     return <Navigate to="/dashboard" replace />
   }
 
+  if (isAuthenticated && !isOnboarded) {
+    return <Navigate to="/onboarding" replace />
+  }
+
   return <Outlet />
 }

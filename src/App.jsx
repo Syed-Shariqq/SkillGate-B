@@ -1,24 +1,43 @@
-import React, { useEffect } from "react";
-import SkeletonCard from "./components/ui/SkeletonCard";
-import { useAuth } from "./hooks/useAuth";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "./context/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { PublicRoute } from "./components/PublicRoute";
+import RecruiterAuthPage from "./pages/auth/RecruiterAuthPage";
+import RecruiterOnboarding from "./pages/auth/RecruiterOnboarding";
+import RecruiterDashboard from "./pages/recruiter/dashboard/RecruiterDashboard";
+import NotFound from "./pages/NotFound";
 
 const App = () => {
-  const { user, profile, loading } = useAuth();
-
-  useEffect(() => {
-    console.log("AUTH STATE:", { user, profile, loading });
-  }, [user, profile, loading]);
-
-  if (loading) {
-    return <SkeletonCard />;
-  }
-
   return (
-    <div>
-      <h1>Auth Test</h1>
-      <p>User: {user ? user.email : "Not logged in"}</p>
-      <p>Onboarded: {profile?.is_onboarded ? "Yes" : "No"}</p>
-    </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#161B22",
+              border: "1px solid #2A323C",
+              color: "#E6EDF3",
+            },
+          }}
+        />
+
+        <Routes>
+          <Route element={<PublicRoute />}>
+            <Route path="/auth" element={<RecruiterAuthPage />} />
+          </Route>
+
+          <Route path="/onboarding" element={<RecruiterOnboarding />} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<RecruiterDashboard />} />
+          </Route>
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 

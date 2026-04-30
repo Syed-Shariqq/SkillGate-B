@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
@@ -45,7 +44,6 @@ const validatePassword = (value) => {
 };
 
 const RecruiterAuthPage = () => {
-  const navigate = useNavigate();
   const { login, register } = useAuth();
 
   const [activeTab, setActiveTab] = useState("signup");
@@ -158,8 +156,6 @@ const RecruiterAuthPage = () => {
           ...currentForm,
           signupPassword: "",
         }));
-      } else {
-        navigate("/dashboard");
       }
     } catch (error) {
       setFormError(error?.message || "Something went wrong");
@@ -170,23 +166,6 @@ const RecruiterAuthPage = () => {
 
   return (
     <main className="min-h-screen bg-primary text-text-primary lg:flex">
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: "#161B22",
-            border: "1px solid #2A323C",
-            color: "#E6EDF3",
-          },
-          success: {
-            iconTheme: {
-              primary: "#238636",
-              secondary: "#E6EDF3",
-            },
-          },
-        }}
-      />
-
       <section className="hidden min-h-screen w-[40%] flex-col justify-between border-r border-border-default bg-secondary px-10 py-9 lg:flex">
         <div>
           <div className="flex items-center gap-3">

@@ -88,16 +88,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async ({ email, password }) => {
-    const { data, error } = await loginService({ email, password });
-
-    if (!error) {
-      const authState = await loadUserAndProfile();
-
-      setUser(authState.user);
-      setProfile(authState.profile);
-    }
-
-    return { data, error };
+    return loginService({ email, password });
   };
 
   const register = ({ name, email, password }) => {
