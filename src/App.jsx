@@ -1,51 +1,47 @@
-import toast from 'react-hot-toast'
-import Button from './components/ui/Button'
-import { Toaster } from 'react-hot-toast'
+import { useEffect } from "react";
+import * as authService from "./services/auth/authService";
 
-const App = () => {
-  return (
-    <div className="min-h-screen bg-primary flex 
-    flex-col items-center justify-center gap-4 p-8">
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#161B22',
-            color: '#E6EDF3',
-            border: '1px solid #2A323C',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontFamily: 'Inter, sans-serif',
-          },
-          success: {
-            iconTheme: {
-              primary: '#238636',
-              secondary: '#161B22',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#DA3633',
-              secondary: '#161B22',
-            },
-          },
-        }}
-      />
+function App() {
 
-      <Button onClick={() => toast.success('Assessment submitted!')}>
-        Success Toast
-      </Button>
-      <Button variant="danger" 
-        onClick={() => toast.error('Something went wrong')}>
-        Error Toast
-      </Button>
-      <Button variant="secondary" 
-        onClick={() => toast('Processing your request...')}>
-        Default Toast
-      </Button>
-    </div>
-  )
+  useEffect(() => {
+    const runTest = async () => {
+      console.log("===== AUTH SERVICE TEST START =====");
+
+      const email = "test123@gmail.com";
+      const password = "password123";
+
+      // 1. REGISTER
+      const registerRes = await authService.register({
+        name: "Test User",
+        email,
+        password,
+      });
+      console.log("REGISTER:", registerRes);
+
+      // 2. LOGIN
+      const loginRes = await authService.login({
+        email,
+        password,
+      });
+      console.log("LOGIN:", loginRes);
+
+      // 3. GET USER
+      const user = await authService.getCurrentUser();
+      console.log("USER:", user);
+
+      // 4. GET PROFILE
+      if (user) {
+        const profileRes = await authService.getProfile(user.id);
+        console.log("PROFILE:", profileRes);
+      }
+
+      console.log("===== AUTH SERVICE TEST END =====");
+    };
+
+    runTest();
+  }, []);
+
+  return <div>Testing Auth...</div>;
 }
 
-export default App
+export default App;
