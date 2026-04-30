@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 const navLinks = [
@@ -8,10 +8,10 @@ const navLinks = [
 ];
 
 const candidates = [
-  { name: "Maya R.", role: "Frontend Systems", score: 96, status: "Ready" },
-  { name: "Jon Bell", role: "API Design", score: 91, status: "Review" },
-  { name: "Elena K.", role: "Data Modeling", score: 84, status: "Passed" },
-  { name: "Noah S.", role: "Debugging", score: 72, status: "Hold" },
+  { name: "Maya R.", role: "Frontend Systems", score: 96, status: "Qualified" },
+  { name: "Jon Bell", role: "API Design", score: 89, status: "Qualified" },
+  { name: "Elena K.", role: "Data Modeling", score: 78, status: "Needs review" },
+  { name: "Noah S.", role: "Debugging", score: 58, status: "Rejected" },
 ];
 
 const steps = [
@@ -62,6 +62,7 @@ const pricingPlans = [
     price: "$99",
     cadence: "/mo",
     features: ["3 active jobs", "50 assessments", "AI-generated questions", "Candidate ranking"],
+    unavailable: ["Unlimited jobs", "Advanced AI evaluation"],
     cta: "Start Hiring",
   },
   {
@@ -70,6 +71,7 @@ const pricingPlans = [
     price: "$249",
     cadence: "/mo",
     features: ["Unlimited jobs", "AI evaluation", "Structured scorecards", "Team review workspace"],
+    unavailable: ["Dedicated onboarding"],
     cta: "Start Hiring",
     highlighted: true,
   },
@@ -79,6 +81,7 @@ const pricingPlans = [
     price: "Custom",
     cadence: "",
     features: ["Custom rubrics", "Priority support", "Security review", "Dedicated onboarding"],
+    unavailable: [],
     cta: "Contact Sales",
   },
 ];
@@ -166,19 +169,51 @@ const Card = ({ children, className = "" }) => (
   </div>
 );
 
-const Badge = ({ children, tone = "accent" }) => {
+const Badge = ({ children, tone = "accent", className = "" }) => {
   const tones = {
     accent: "border-accent/25 bg-accent-soft text-text-primary",
     success: "border-success/25 bg-success/10 text-success",
+    warning: "border-warning/25 bg-warning/10 text-warning",
+    error: "border-error/25 bg-error/10 text-error",
     muted: "border-border-default bg-tertiary text-text-secondary",
   };
 
   return (
-    <span className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tones[tone]}`}>
+    <span className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tones[tone]} ${className}`}>
       {children}
     </span>
   );
 };
+
+const scoreTone = (score) => {
+  if (score >= 85) return "success";
+  if (score >= 70) return "warning";
+  return "error";
+};
+
+const statusTone = (status) => {
+  if (status === "Qualified") return "success";
+  if (status === "Rejected") return "error";
+  return "warning";
+};
+
+const ScoreBadge = ({ score }) => (
+  <Badge tone={scoreTone(score)} className="font-mono transition-transform duration-200 hover:scale-[1.04]">
+    {score}%
+  </Badge>
+);
+
+const IncludedIcon = () => (
+  <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-success/10 text-success">
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3 w-3" fill="none">
+      <path d="M3.5 8.2 6.6 11 12.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  </span>
+);
+
+const UnavailableIcon = () => (
+  <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-border-default bg-tertiary" />
+);
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -262,8 +297,12 @@ const HeroMock = () => (
             </div>
           </div>
           <div className="text-right">
-            <p className="font-mono text-lg font-semibold text-accent">{candidate.score}%</p>
-            <p className="text-[11px] font-medium text-text-tertiary">{candidate.status}</p>
+            <ScoreBadge score={candidate.score} />
+            <div className="mt-1">
+              <Badge tone={statusTone(candidate.status)} className="transition-transform duration-200 hover:scale-[1.04]">
+                {candidate.status}
+              </Badge>
+            </div>
           </div>
         </div>
       ))}
@@ -272,7 +311,7 @@ const HeroMock = () => (
     <div className="mt-5 rounded-lg border border-border-default bg-tertiary p-4">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-tertiary">Ranking reason</p>
-        <span className="h-2 w-2 rounded-full bg-success" />
+        <span className="h-2 w-2 rounded-full border border-success/35 bg-success/10" />
       </div>
       <p className="text-sm leading-6 text-text-secondary">
         Maya solved the data consistency task, identified edge cases, and explained tradeoffs in plain language.
@@ -294,7 +333,7 @@ const Hero = () => (
         </p>
         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
           <Button to="/auth">Start Hiring</Button>
-          <Button to="#how-it-works" variant="secondary">
+          <Button to="/demo" variant="secondary">
             See how it works
           </Button>
         </div>
@@ -374,7 +413,7 @@ const ProductDeepDive = () => (
               <p className="mt-1 text-xs text-text-tertiary">Question 4 - debugging a failed webhook retry</p>
             </div>
             <div className="text-right">
-              <p className="font-mono text-3xl font-semibold text-accent">92</p>
+              <p className="font-mono text-3xl font-semibold text-success">92</p>
               <p className="text-xs text-text-tertiary">score</p>
             </div>
           </div>
@@ -395,7 +434,9 @@ const ProductDeepDive = () => (
               >
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-sm font-semibold text-text-primary">{label}</p>
-                  <p className="font-mono text-sm text-accent">{score}</p>
+                  <Badge tone={scoreTone(Number.parseInt(score, 10))} className="font-mono transition-transform duration-200 hover:scale-[1.04]">
+                    {score}
+                  </Badge>
                 </div>
                 <p className="mt-2 text-sm text-text-secondary">{detail}</p>
               </div>
@@ -421,15 +462,25 @@ const Differentiation = () => (
       <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">Built for signal.</h2>
     </div>
     <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-      {differentiators.map((item) => (
-        <Card key={item.title} className="bg-secondary p-6">
-          <div className="grid h-10 w-10 place-items-center rounded-lg border border-border-default bg-primary font-mono text-sm font-semibold text-accent">
-            {item.icon}
-          </div>
-          <h3 className="mt-5 text-lg font-bold text-text-primary">{item.title}</h3>
-          <p className="mt-3 text-sm leading-6 text-text-secondary">{item.text}</p>
-        </Card>
-      ))}
+      {differentiators.map((item) => {
+        const isTimeSaving = item.title.includes("10+");
+
+        return (
+          <Card key={item.title} className="bg-secondary p-6">
+            <div
+              className={`grid h-10 w-10 place-items-center rounded-lg border bg-primary font-mono text-sm font-semibold ${
+                isTimeSaving
+                  ? "border-success/25 bg-success/10 text-success"
+                  : "border-border-default text-text-tertiary"
+              }`}
+            >
+              {item.icon}
+            </div>
+            <h3 className="mt-5 text-lg font-bold text-text-primary">{item.title}</h3>
+            <p className="mt-3 text-sm leading-6 text-text-secondary">{item.text}</p>
+          </Card>
+        );
+      })}
     </div>
   </Section>
 );
@@ -503,8 +554,14 @@ const Pricing = () => (
           <ul className="space-y-3">
             {plan.features.map((feature) => (
               <li key={feature} className="flex items-start gap-3 text-sm text-text-secondary">
-                <span className="mt-1 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-success/15 text-[10px] text-success">✓</span>
+                <IncludedIcon />
                 {feature}
+              </li>
+            ))}
+            {plan.unavailable.map((feature) => (
+              <li key={feature} className="flex items-start gap-3 text-sm text-text-tertiary/70">
+                <UnavailableIcon />
+                <span className="line-through decoration-border-default">{feature}</span>
               </li>
             ))}
           </ul>

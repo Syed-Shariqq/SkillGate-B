@@ -8,6 +8,9 @@ import RecruiterOnboarding from "./pages/auth/RecruiterOnboarding";
 import RecruiterDashboard from "./pages/recruiter/dashboard/RecruiterDashboard";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
+import DemoLanding from "./pages/demo/DemoLanding";
+import DemoAssessment from "./pages/demo/DemoAssessment";
+import DemoResult from "./pages/demo/DemoResult";
 
 const App = () => {
   return (
@@ -26,6 +29,9 @@ const App = () => {
 
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/demo" element={<DemoLanding />} />
+          <Route path="/demo/assessment" element={<DemoAssessment />} />
+          <Route path="/demo/result" element={<DemoResult />} />
           <Route element={<PublicRoute />}>
             <Route path="/auth" element={<RecruiterAuthPage />} />
           </Route>
