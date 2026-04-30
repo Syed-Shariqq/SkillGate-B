@@ -21,6 +21,12 @@ const trustPoints = [
   "Save 10+ hours per hire",
 ];
 
+const inputClassName =
+  "h-11 rounded-md bg-primary/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.03),inset_0_0_0_1px_rgba(255,255,255,0.01)] transition-[border-color,box-shadow,background-color] duration-200 focus:bg-primary focus:shadow-[0_0_0_3px_rgba(91,109,246,0.16),inset_0_1px_0_rgba(255,255,255,0.04)]";
+
+const primaryButtonClassName =
+  "h-11 w-full bg-gradient-to-r from-accent to-accent-hover shadow-[0_12px_28px_rgba(91,109,246,0.24)] transition-[transform,box-shadow,opacity] duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(91,109,246,0.3)] active:translate-y-0 active:shadow-[0_8px_20px_rgba(91,109,246,0.22)]";
+
 const getRequiredError = (value, label) => {
   return value.trim() ? "" : `${label} is required`;
 };
@@ -165,11 +171,12 @@ const RecruiterAuthPage = () => {
   };
 
   return (
-    <main className="min-h-screen bg-primary text-text-primary lg:flex">
-      <section className="hidden min-h-screen w-[40%] flex-col justify-between border-r border-border-default bg-secondary px-10 py-9 lg:flex">
-        <div>
+    <main className="min-h-screen overflow-hidden bg-primary text-text-primary lg:flex">
+      <section className="relative hidden min-h-screen w-[40%] flex-col justify-between overflow-hidden border-r border-border-default bg-[linear-gradient(145deg,#161B22_0%,#111722_48%,#0D1117_100%)] px-12 py-10 lg:flex">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(91,109,246,0.14),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_38%)]" />
+        <div className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent text-lg font-bold text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-hover text-lg font-bold text-white shadow-[0_12px_32px_rgba(91,109,246,0.28)]">
               SG
             </div>
             <span className="text-2xl font-semibold tracking-normal">
@@ -177,24 +184,30 @@ const RecruiterAuthPage = () => {
             </span>
           </div>
 
-          <div className="mt-20 max-w-sm">
-            <h1 className="text-4xl font-semibold leading-tight">
+          <div className="mt-24 max-w-md">
+            <p className="mb-5 text-sm font-medium uppercase tracking-[0.18em] text-text-tertiary">
+              Recruiter intelligence
+            </p>
+            <h1 className="text-5xl font-semibold leading-[1.05] tracking-normal text-text-primary">
               Hire smarter. Screen faster.
             </h1>
-            <p className="mt-5 text-base text-text-secondary">
+            <p className="mt-6 max-w-sm text-base leading-7 text-text-secondary">
               A focused workspace for recruiter teams to evaluate candidates
               with signal-rich assessments and faster shortlists.
             </p>
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="relative space-y-5">
           {trustPoints.map((point) => (
-            <div key={point} className="flex items-center gap-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
-                <span className="h-2 w-2 rounded-full bg-accent" />
+            <div
+              key={point}
+              className="group flex items-center gap-4 rounded-lg border border-transparent px-1 py-1 transition-colors duration-200 hover:border-border-default/70 hover:bg-hover-overlay"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-accent/30 bg-accent-soft shadow-[0_0_0_4px_rgba(91,109,246,0.04)] transition-transform duration-200 group-hover:scale-105">
+                <span className="h-2.5 w-1.5 rotate-45 border-b-2 border-r-2 border-accent" />
               </span>
-              <span className="text-sm font-medium text-text-secondary">
+              <span className="text-sm font-medium text-text-secondary transition-colors duration-200 group-hover:text-text-primary">
                 {point}
               </span>
             </div>
@@ -202,33 +215,44 @@ const RecruiterAuthPage = () => {
         </div>
       </section>
 
-      <section className="flex min-h-screen w-full items-center justify-center px-5 py-10 lg:w-[60%] lg:px-12">
+      <section className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(180deg,rgba(31,38,48,0.32),rgba(13,17,23,0)_34%)] px-5 py-10 lg:w-[60%] lg:px-12">
         <div className="w-full max-w-md">
-          <div className="mb-8 lg:hidden">
+          <div className="mb-9 lg:hidden">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-base font-bold text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-hover text-base font-bold text-white shadow-[0_10px_28px_rgba(91,109,246,0.24)]">
                 SG
               </div>
               <span className="text-xl font-semibold">SkillGate</span>
             </div>
           </div>
 
-          <Card padding="lg" className="rounded-lg">
-            <div className="mb-7">
-              <p className="text-sm font-medium text-accent">Recruiter access</p>
-              <h2 className="mt-2 text-2xl font-semibold">
+          <Card
+            padding="lg"
+            className="rounded-lg border-border-default/90 bg-[linear-gradient(180deg,rgba(22,27,34,0.94),rgba(22,27,34,0.86))] shadow-[0_24px_80px_rgba(0,0,0,0.34),0_0_0_1px_rgba(91,109,246,0.06)] backdrop-blur-xl"
+          >
+            <div className="mb-8">
+              <p className="text-sm font-medium text-accent">
+                Recruiter access
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold leading-tight tracking-normal">
                 {isSignup ? "Create your account" : "Welcome back"}
               </h2>
+              <p className="mt-3 text-sm leading-6 text-text-secondary">
+                {isSignup
+                  ? "Start screening candidates with structured, signal-first assessments."
+                  : "Log in to continue managing roles, candidates, and results."}
+              </p>
             </div>
 
-            <div className="mb-7 grid grid-cols-2 rounded-lg border border-border-default bg-primary p-1">
+            <div className="mb-8 grid grid-cols-2 rounded-lg border border-border-default/90 bg-primary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => handleTabChange("signup")}
-                className={`rounded-md px-4 py-2 text-sm font-medium transition-smooth ${
+                aria-pressed={isSignup}
+                className={`rounded-md px-4 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.99] ${
                   isSignup
-                    ? "bg-accent text-white"
+                    ? "bg-tertiary text-text-primary shadow-[0_8px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]"
                     : "text-text-secondary hover:bg-hover-overlay hover:text-text-primary"
                 }`}
               >
@@ -238,9 +262,10 @@ const RecruiterAuthPage = () => {
                 type="button"
                 disabled={loading}
                 onClick={() => handleTabChange("login")}
-                className={`rounded-md px-4 py-2 text-sm font-medium transition-smooth ${
+                aria-pressed={!isSignup}
+                className={`rounded-md px-4 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.99] ${
                   !isSignup
-                    ? "bg-accent text-white"
+                    ? "bg-tertiary text-text-primary shadow-[0_8px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]"
                     : "text-text-secondary hover:bg-hover-overlay hover:text-text-primary"
                 }`}
               >
@@ -260,28 +285,33 @@ const RecruiterAuthPage = () => {
                     error={fieldErrors.fullName}
                     disabled={loading}
                     autoComplete="name"
+                    className={inputClassName}
                   />
                   <Input
                     label="Work Email"
                     name="workEmail"
                     type="email"
+                    placeholder="you@company.com"
                     value={form.workEmail}
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={fieldErrors.workEmail}
                     disabled={loading}
                     autoComplete="email"
+                    className={inputClassName}
                   />
                   <Input
                     label="Password (min 8 chars)"
                     name="signupPassword"
                     type="password"
+                    placeholder="Create a secure password"
                     value={form.signupPassword}
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={fieldErrors.signupPassword}
                     disabled={loading}
                     autoComplete="new-password"
+                    className={inputClassName}
                   />
                 </>
               ) : (
@@ -290,28 +320,35 @@ const RecruiterAuthPage = () => {
                     label="Email"
                     name="loginEmail"
                     type="email"
+                    placeholder="you@company.com"
                     value={form.loginEmail}
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={fieldErrors.loginEmail}
                     disabled={loading}
                     autoComplete="email"
+                    className={inputClassName}
                   />
                   <Input
                     label="Password"
                     name="loginPassword"
                     type="password"
+                    placeholder="Enter your password"
                     value={form.loginPassword}
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={fieldErrors.loginPassword}
                     disabled={loading}
                     autoComplete="current-password"
+                    className={inputClassName}
                   />
 
                   <div className="flex justify-end">
                     {/* TODO: Wire forgot password flow. */}
-                    <a href="#forgot-password" className="text-sm font-medium">
+                    <a
+                      href="#forgot-password"
+                      className="text-sm font-medium text-text-secondary transition-colors duration-200 hover:text-accent"
+                    >
                       Forgot password?
                     </a>
                   </div>
@@ -323,14 +360,14 @@ const RecruiterAuthPage = () => {
                 variant="primary"
                 loading={loading}
                 disabled={loading}
-                className="w-full"
+                className={primaryButtonClassName}
               >
                 {isSignup ? "Sign Up" : "Log In"}
               </Button>
             </form>
 
             {formError && (
-              <p className="mt-4 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+              <p className="mt-5 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 {formError}
               </p>
             )}
