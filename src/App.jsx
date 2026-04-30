@@ -1,47 +1,25 @@
-import { useEffect } from "react";
-import * as authService from "./services/auth/authService";
+import React, { useEffect } from "react";
+import SkeletonCard from "./components/ui/SkeletonCard";
+import { useAuth } from "./hooks/useAuth";
 
-function App() {
+const App = () => {
+  const { user, profile, loading } = useAuth();
 
   useEffect(() => {
-    const runTest = async () => {
-      console.log("===== AUTH SERVICE TEST START =====");
+    console.log("AUTH STATE:", { user, profile, loading });
+  }, [user, profile, loading]);
 
-      const email = "test123@gmail.com";
-      const password = "password123";
+  if (loading) {
+    return <SkeletonCard />;
+  }
 
-      // 1. REGISTER
-      const registerRes = await authService.register({
-        name: "Test User",
-        email,
-        password,
-      });
-      console.log("REGISTER:", registerRes);
-
-      // 2. LOGIN
-      const loginRes = await authService.login({
-        email,
-        password,
-      });
-      console.log("LOGIN:", loginRes);
-
-      // 3. GET USER
-      const user = await authService.getCurrentUser();
-      console.log("USER:", user);
-
-      // 4. GET PROFILE
-      if (user) {
-        const profileRes = await authService.getProfile(user.id);
-        console.log("PROFILE:", profileRes);
-      }
-
-      console.log("===== AUTH SERVICE TEST END =====");
-    };
-
-    runTest();
-  }, []);
-
-  return <div>Testing Auth...</div>;
-}
+  return (
+    <div>
+      <h1>Auth Test</h1>
+      <p>User: {user ? user.email : "Not logged in"}</p>
+      <p>Onboarded: {profile?.is_onboarded ? "Yes" : "No"}</p>
+    </div>
+  );
+};
 
 export default App;
