@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
+import skillGateLogo from "../../assets/skillGate-logo.png";
 import { useAuth } from "../../hooks/useAuth";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -176,9 +177,11 @@ const RecruiterAuthPage = () => {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(91,109,246,0.14),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_38%)]" />
         <div className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-hover text-lg font-bold text-white shadow-[0_12px_32px_rgba(91,109,246,0.28)]">
-              SG
-            </div>
+            <img
+              src={skillGateLogo}
+              alt="SkillGate logo"
+              className="h-11 w-11 rounded-lg border border-accent/25 object-cover shadow-[0_12px_32px_rgba(91,109,246,0.18)]"
+            />
             <span className="text-2xl font-semibold tracking-normal">
               SkillGate
             </span>
@@ -219,9 +222,11 @@ const RecruiterAuthPage = () => {
         <div className="w-full max-w-md">
           <div className="mb-9 lg:hidden">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-hover text-base font-bold text-white shadow-[0_10px_28px_rgba(91,109,246,0.24)]">
-                SG
-              </div>
+              <img
+                src={skillGateLogo}
+                alt="SkillGate logo"
+                className="h-10 w-10 rounded-lg border border-accent/25 object-cover shadow-[0_10px_28px_rgba(91,109,246,0.16)]"
+              />
               <span className="text-xl font-semibold">SkillGate</span>
             </div>
           </div>

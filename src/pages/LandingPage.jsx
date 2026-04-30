@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import skillGateLogo from "../assets/skillGate-logo.png";
 
 const navLinks = [
   { label: "Product", href: "#product" },
@@ -233,9 +234,11 @@ const Navbar = () => {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <a href="#top" className="group flex items-center gap-3 text-text-primary">
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-accent/30 bg-accent-soft text-sm font-bold text-accent transition-all duration-200 group-hover:border-accent/60">
-            S
-          </span>
+          <img
+            src={skillGateLogo}
+            alt="SkillGate logo"
+            className="h-12 w-12 rounded-lg border border-accent/30 object-cover transition-all duration-200 group-hover:border-accent/60"
+          />
           <span className="text-lg font-bold tracking-tight">SkillGate</span>
         </a>
 
@@ -631,9 +634,11 @@ const Footer = () => (
   <footer className="border-t border-border-default bg-primary px-6 py-10">
     <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
       <div className="flex items-center gap-3">
-        <span className="grid h-8 w-8 place-items-center rounded-lg border border-accent/30 bg-accent-soft text-sm font-bold text-accent">
-          S
-        </span>
+        <img
+          src={skillGateLogo}
+          alt="SkillGate logo"
+          className="h-8 w-8 rounded-lg border border-accent/30 object-cover"
+        />
         <span className="font-bold tracking-tight text-text-primary">SkillGate</span>
       </div>
       <div className="flex flex-wrap gap-6">

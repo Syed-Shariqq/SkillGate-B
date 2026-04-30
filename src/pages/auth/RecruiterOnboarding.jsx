@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
+import skillGateLogo from "../../assets/skillGate-logo.png";
 import { useAuth } from "../../hooks/useAuth";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -148,9 +149,11 @@ const RecruiterOnboarding = () => {
         <div className="mb-7">
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-base font-bold text-white">
-                SG
-              </div>
+              <img
+                src={skillGateLogo}
+                alt="SkillGate logo"
+                className="h-10 w-10 rounded-lg border border-accent/25 object-cover"
+              />
               <span className="text-lg font-semibold">SkillGate</span>
             </div>
             <span className="rounded-md border border-border-default bg-primary px-3 py-1 text-xs font-medium text-text-secondary">
