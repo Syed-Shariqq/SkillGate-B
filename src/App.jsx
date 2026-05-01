@@ -13,6 +13,7 @@ import DemoAssessment from "./pages/demo/DemoAssessment";
 import DemoResult from "./pages/demo/DemoResult";
 
 const App = () => {
+
   return (
     <BrowserRouter>
       <AuthProvider>
