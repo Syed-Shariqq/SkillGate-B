@@ -33,7 +33,7 @@ export async function callGemini(prompt, maxTokens) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 8000)
+  const timeoutId = setTimeout(() => controller.abort(), 40000)
 
   try {
     const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
@@ -56,10 +56,14 @@ export async function callGemini(prompt, maxTokens) {
     })
 
     if (!response.ok) {
-      throw new Error(`Gemini request failed: ${response.status}`)
-    }
+  const errBody = await response.text()
+  console.error('[ai] Gemini HTTP error', response.status, errBody)
+  throw new Error(`Gemini request failed: ${response.status}`)
+}
 
-    return getGeminiText(await response.json())
+    const result = getGeminiText(await response.json())
+console.log('[ai] Gemini success, length:', result.length)
+return result
   } catch (error) {
     if (error?.name === 'AbortError') {
       throw new Error('Gemini request timed out')
@@ -92,8 +96,10 @@ export async function callGrok(prompt, maxTokens) {
   })
 
   if (!response.ok) {
-    throw new Error(`Grok request failed: ${response.status}`)
-  }
+  const errBody = await response.text()
+  console.error('[ai] Grok HTTP error', response.status, errBody)
+  throw new Error(`Grok request failed: ${response.status}`)
+}
 
   return getGrokText(await response.json())
 }
@@ -103,30 +109,35 @@ export async function callAI(prompt, maxTokens) {
     const text = await callGemini(prompt, maxTokens)
     console.log('[ai] provider used: gemini')
     return { data: text, error: null }
-  } catch (_geminiError) {
-    try {
-      const text = await callGrok(prompt, maxTokens)
-      console.log('[ai] provider used: grok')
-      return { data: text, error: null }
-    } catch (_grokError) {
-      return {
-        data: null,
-        error: { type: 'AI_UNAVAILABLE', message: 'All providers failed' },
-      }
+  } catch (geminiError) {
+  console.error('[ai] Gemini failed', geminiError.message)
+  try {
+    const text = await callGrok(prompt, maxTokens)
+    console.log('[ai] provider used: grok')
+    return { data: text, error: null }
+  } catch (grokError) {
+    console.error('[ai] Grok failed', grokError.message)
+    return {
+      data: null,
+      error: { type: 'AI_UNAVAILABLE', message: 'All providers failed' },
     }
   }
 }
+}
 
 export function parseJSON(text) {
-  try {
-    const cleaned = String(text)
-      .trim()
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim()
+  const cleaned = String(text)
+    .trim()
+    .replace(/^```(?:json)?\n?/i, '')
+    .replace(/\n?```$/i, '')
+    .trim()
 
+  console.log('[ai] cleaned length:', cleaned.length, 'last chars:', cleaned.slice(-50))
+
+  try {
     return { data: JSON.parse(cleaned), error: null }
   } catch (_error) {
+    console.log('[ai] parse failed, cleaned start:', cleaned?.slice(0, 200))
     return {
       data: null,
       error: { type: 'PARSE_ERROR', message: 'Invalid JSON' },

@@ -1,12 +1,6 @@
 export function getLimit(tier) {
-  if (tier === 'pro') {
-    return 50
-  }
-
-  if (tier === 'enterprise') {
-    return Infinity
-  }
-
+  if (tier === 'pro' || tier === 'starter') return 50
+  if (tier === 'enterprise') return Infinity
   return 10
 }
 
