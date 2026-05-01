@@ -1,50 +1,50 @@
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
-const GROK_URL = 'https://api.x.ai/v1/chat/completions'
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GROK_URL = "https://api.x.ai/v1/chat/completions";
 
 function getGeminiText(payload) {
   const text = payload?.candidates?.[0]?.content?.parts
     ?.map((part) => part?.text)
-    .filter((partText) => typeof partText === 'string')
-    .join('')
+    .filter((partText) => typeof partText === "string")
+    .join("");
 
   if (!text) {
-    throw new Error('Gemini returned no text')
+    throw new Error("Gemini returned no text");
   }
 
-  return text
+  return text;
 }
 
 function getGrokText(payload) {
-  const text = payload?.choices?.[0]?.message?.content
+  const text = payload?.choices?.[0]?.message?.content;
 
-  if (typeof text !== 'string' || text.length === 0) {
-    throw new Error('Grok returned no text')
+  if (typeof text !== "string" || text.length === 0) {
+    throw new Error("Grok returned no text");
   }
 
-  return text
+  return text;
 }
 
 export async function callGemini(prompt, maxTokens) {
-  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
 
   if (!apiKey) {
-    throw new Error('Missing GEMINI_API_KEY')
+    throw new Error("Missing GEMINI_API_KEY");
   }
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 40000)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 40000);
 
   try {
     const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         contents: [
           {
-            role: 'user',
+            role: "user",
             parts: [{ text: prompt }],
           },
         ],
@@ -53,95 +53,91 @@ export async function callGemini(prompt, maxTokens) {
         },
       }),
       signal: controller.signal,
-    })
+    });
 
     if (!response.ok) {
-  const errBody = await response.text()
-  console.error('[ai] Gemini HTTP error', response.status, errBody)
-  throw new Error(`Gemini request failed: ${response.status}`)
-}
-
-    const result = getGeminiText(await response.json())
-console.log('[ai] Gemini success, length:', result.length)
-return result
-  } catch (error) {
-    if (error?.name === 'AbortError') {
-      throw new Error('Gemini request timed out')
+      const errBody = await response.text();
+      console.error("[ai] Gemini HTTP error", response.status, errBody);
+      throw new Error(`Gemini request failed: ${response.status}`);
     }
 
-    throw error
+    const result = getGeminiText(await response.json());
+    return result;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Gemini request timed out");
+    }
+
+    throw error;
   } finally {
-    clearTimeout(timeoutId)
+    clearTimeout(timeoutId);
   }
 }
 
 export async function callGrok(prompt, maxTokens) {
-  const apiKey = Deno.env.get('GROK_API_KEY')
+  const apiKey = Deno.env.get("GROK_API_KEY");
 
   if (!apiKey) {
-    throw new Error('Missing GROK_API_KEY')
+    throw new Error("Missing GROK_API_KEY");
   }
 
   const response = await fetch(GROK_URL, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: 'grok-2-latest',
-      messages: [{ role: 'user', content: prompt }],
+      model: "grok-2-latest",
+      messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens,
     }),
-  })
+  });
 
   if (!response.ok) {
-  const errBody = await response.text()
-  console.error('[ai] Grok HTTP error', response.status, errBody)
-  throw new Error(`Grok request failed: ${response.status}`)
-}
+    const errBody = await response.text();
+    console.error("[ai] Grok HTTP error", response.status, errBody);
+    throw new Error(`Grok request failed: ${response.status}`);
+  }
 
-  return getGrokText(await response.json())
+  return getGrokText(await response.json());
 }
 
 export async function callAI(prompt, maxTokens) {
   try {
-    const text = await callGemini(prompt, maxTokens)
-    console.log('[ai] provider used: gemini')
-    return { data: text, error: null }
+    const text = await callGemini(prompt, maxTokens);
+    console.log("[ai] provider used: gemini");
+    return { data: text, error: null };
   } catch (geminiError) {
-  console.error('[ai] Gemini failed', geminiError.message)
-  try {
-    const text = await callGrok(prompt, maxTokens)
-    console.log('[ai] provider used: grok')
-    return { data: text, error: null }
-  } catch (grokError) {
-    console.error('[ai] Grok failed', grokError.message)
-    return {
-      data: null,
-      error: { type: 'AI_UNAVAILABLE', message: 'All providers failed' },
+    console.error("[ai] Gemini failed", geminiError.message);
+    try {
+      const text = await callGrok(prompt, maxTokens);
+      console.log("[ai] provider used: grok");
+      return { data: text, error: null };
+    } catch (grokError) {
+      console.error("[ai] Grok failed", grokError.message);
+      return {
+        data: null,
+        error: { type: "AI_UNAVAILABLE", message: "All providers failed" },
+      };
     }
   }
-}
 }
 
 export function parseJSON(text) {
   const cleaned = String(text)
     .trim()
-    .replace(/^```(?:json)?\n?/i, '')
-    .replace(/\n?```$/i, '')
-    .trim()
-
-  console.log('[ai] cleaned length:', cleaned.length, 'last chars:', cleaned.slice(-50))
+    .replace(/^```(?:json)?\n?/i, "")
+    .replace(/\n?```$/i, "")
+    .trim();
 
   try {
-    return { data: JSON.parse(cleaned), error: null }
+    return { data: JSON.parse(cleaned), error: null };
   } catch (_error) {
-    console.log('[ai] parse failed, cleaned start:', cleaned?.slice(0, 200))
     return {
       data: null,
-      error: { type: 'PARSE_ERROR', message: 'Invalid JSON' },
-    }
+      error: { type: "PARSE_ERROR", message: "Invalid JSON" },
+    };
   }
 }
 
@@ -151,20 +147,20 @@ export function normalizeAIResponse(raw) {
       return {
         data: null,
         error: {
-          type: 'PARSE_ERROR',
-          message: 'Invalid response structure',
+          type: "PARSE_ERROR",
+          message: "Invalid response structure",
         },
-      }
+      };
     }
 
-    return { data: { questions: raw.questions }, error: null }
+    return { data: { questions: raw.questions }, error: null };
   } catch (_error) {
     return {
       data: null,
       error: {
-        type: 'PARSE_ERROR',
-        message: 'Invalid response structure',
+        type: "PARSE_ERROR",
+        message: "Invalid response structure",
       },
-    }
+    };
   }
 }
