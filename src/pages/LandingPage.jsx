@@ -11,7 +11,12 @@ const navLinks = [
 const candidates = [
   { name: "Maya R.", role: "Frontend Systems", score: 96, status: "Qualified" },
   { name: "Jon Bell", role: "API Design", score: 89, status: "Qualified" },
-  { name: "Elena K.", role: "Data Modeling", score: 78, status: "Needs review" },
+  {
+    name: "Elena K.",
+    role: "Data Modeling",
+    score: 78,
+    status: "Needs review",
+  },
   { name: "Noah S.", role: "Debugging", score: 58, status: "Rejected" },
 ];
 
@@ -62,7 +67,12 @@ const pricingPlans = [
     audience: "For small teams",
     price: "$99",
     cadence: "/mo",
-    features: ["3 active jobs", "50 assessments", "AI-generated questions", "Candidate ranking"],
+    features: [
+      "3 active jobs",
+      "50 assessments",
+      "AI-generated questions",
+      "Candidate ranking",
+    ],
     unavailable: ["Unlimited jobs", "Advanced AI evaluation"],
     cta: "Start Hiring",
   },
@@ -71,7 +81,12 @@ const pricingPlans = [
     audience: "Most popular",
     price: "$249",
     cadence: "/mo",
-    features: ["Unlimited jobs", "AI evaluation", "Structured scorecards", "Team review workspace"],
+    features: [
+      "Unlimited jobs",
+      "AI evaluation",
+      "Structured scorecards",
+      "Team review workspace",
+    ],
     unavailable: ["Dedicated onboarding"],
     cta: "Start Hiring",
     highlighted: true,
@@ -81,7 +96,12 @@ const pricingPlans = [
     audience: "For larger hiring teams",
     price: "Custom",
     cadence: "",
-    features: ["Custom rubrics", "Priority support", "Security review", "Dedicated onboarding"],
+    features: [
+      "Custom rubrics",
+      "Priority support",
+      "Security review",
+      "Dedicated onboarding",
+    ],
     unavailable: [],
     cta: "Contact Sales",
   },
@@ -90,15 +110,18 @@ const pricingPlans = [
 const faqs = [
   {
     question: "Do candidates need accounts?",
-    answer: "No. Candidates open a secure assessment link, complete the test, and submit. No login, profile setup, or portal required.",
+    answer:
+      "No. Candidates open a secure assessment link, complete the test, and submit. No login, profile setup, or portal required.",
   },
   {
     question: "How accurate is AI scoring?",
-    answer: "SkillGate combines rubric-based scoring with AI reasoning so recruiters can inspect why a candidate was ranked, not just the final number.",
+    answer:
+      "SkillGate combines rubric-based scoring with AI reasoning so recruiters can inspect why a candidate was ranked, not just the final number.",
   },
   {
     question: "Can I customize questions?",
-    answer: "Yes. Recruiters can adjust the generated assessment, tune difficulty, and align questions to the exact role before sending links.",
+    answer:
+      "Yes. Recruiters can adjust the generated assessment, tune difficulty, and align questions to the exact role before sending links.",
   },
 ];
 
@@ -123,7 +146,7 @@ const FadeIn = ({ children, className = "" }) => {
           observer.disconnect();
         }
       },
-      { threshold: 0.16 }
+      { threshold: 0.16 },
     );
 
     observer.observe(node);
@@ -142,7 +165,12 @@ const FadeIn = ({ children, className = "" }) => {
   );
 };
 
-const Button = ({ children, variant = "primary", className = "", ...props }) => {
+const Button = ({
+  children,
+  variant = "primary",
+  className = "",
+  ...props
+}) => {
   const variants = {
     primary:
       "bg-accent text-white shadow-[0_0_28px_rgba(91,109,246,0.22)] hover:bg-accent-hover hover:shadow-[0_0_34px_rgba(91,109,246,0.36)]",
@@ -180,7 +208,9 @@ const Badge = ({ children, tone = "accent", className = "" }) => {
   };
 
   return (
-    <span className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tones[tone]} ${className}`}>
+    <span
+      className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tones[tone]} ${className}`}
+    >
       {children}
     </span>
   );
@@ -199,7 +229,10 @@ const statusTone = (status) => {
 };
 
 const ScoreBadge = ({ score }) => (
-  <Badge tone={scoreTone(score)} className="font-mono transition-transform duration-200 hover:scale-[1.04]">
+  <Badge
+    tone={scoreTone(score)}
+    className="font-mono transition-transform duration-200 hover:scale-[1.04]"
+  >
     {score}%
   </Badge>
 );
@@ -207,7 +240,13 @@ const ScoreBadge = ({ score }) => (
 const IncludedIcon = () => (
   <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-success/10 text-success">
     <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3 w-3" fill="none">
-      <path d="M3.5 8.2 6.6 11 12.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M3.5 8.2 6.6 11 12.5 5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   </span>
 );
@@ -229,11 +268,16 @@ const Navbar = () => {
   return (
     <nav
       className={`fixed inset-x-0 top-0 z-50 border-b transition-all duration-200 ${
-        scrolled ? "border-border-default bg-primary/82 backdrop-blur-xl" : "border-transparent bg-primary/40 backdrop-blur-sm"
+        scrolled
+          ? "border-border-default bg-primary/82 backdrop-blur-xl"
+          : "border-transparent bg-primary/40 backdrop-blur-sm"
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <a href="#top" className="group flex items-center gap-3 text-text-primary">
+        <a
+          href="#top"
+          className="group flex items-center gap-3 text-text-primary"
+        >
           <img
             src={skillGateLogo}
             alt="SkillGate logo"
@@ -273,8 +317,12 @@ const HeroMock = () => (
   <Card className="bg-secondary/95 p-4 md:p-5">
     <div className="mb-5 flex items-center justify-between border-b border-border-default pb-4">
       <div>
-        <p className="text-sm font-semibold text-text-primary">Candidate pipeline</p>
-        <p className="text-xs text-text-tertiary">Backend Engineer assessment</p>
+        <p className="text-sm font-semibold text-text-primary">
+          Candidate pipeline
+        </p>
+        <p className="text-xs text-text-tertiary">
+          Backend Engineer assessment
+        </p>
       </div>
       <Badge tone="success">Live</Badge>
     </div>
@@ -294,15 +342,22 @@ const HeroMock = () => (
                   .join("")}
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-text-primary">{candidate.name}</p>
-                <p className="truncate text-xs text-text-tertiary">{candidate.role}</p>
+                <p className="truncate text-sm font-semibold text-text-primary">
+                  {candidate.name}
+                </p>
+                <p className="truncate text-xs text-text-tertiary">
+                  {candidate.role}
+                </p>
               </div>
             </div>
           </div>
           <div className="text-right">
             <ScoreBadge score={candidate.score} />
             <div className="mt-1">
-              <Badge tone={statusTone(candidate.status)} className="transition-transform duration-200 hover:scale-[1.04]">
+              <Badge
+                tone={statusTone(candidate.status)}
+                className="transition-transform duration-200 hover:scale-[1.04]"
+              >
                 {candidate.status}
               </Badge>
             </div>
@@ -313,26 +368,49 @@ const HeroMock = () => (
 
     <div className="mt-5 rounded-lg border border-border-default bg-tertiary p-4">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-tertiary">Ranking reason</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-tertiary">
+          Ranking reason
+        </p>
         <span className="h-2 w-2 rounded-full border border-success/35 bg-success/10" />
       </div>
       <p className="text-sm leading-6 text-text-secondary">
-        Maya solved the data consistency task, identified edge cases, and explained tradeoffs in plain language.
+        Maya solved the data consistency task, identified edge cases, and
+        explained tradeoffs in plain language.
       </p>
     </div>
   </Card>
 );
 
 const Hero = () => (
-  <section id="top" className="bg-primary px-6 pb-24 pt-32 md:pb-32 md:pt-44">
-    <FadeIn className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1fr_0.82fr]">
+  <section
+    id="top"
+    className="relative overflow-hidden bg-primary px-6 pb-24 pt-32 md:pb-32 md:pt-44"
+  >
+    {/* Background */}
+    <div className="pointer-events-none absolute inset-0 z-0">
+      {/* Dot grid */}
+      <div
+        className="absolute inset-0 opacity-[0.15]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, #5b6df6 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      {/* Top left glow */}
+      <div className="absolute -left-40 -top-40 h-150 w-150 rounded-full bg-accent/20 blur-[120px]" />
+      {/* Bottom right glow */}
+      <div className="absolute -bottom-20 right-0 h-100 w-100 rounded-full bg-accent/10 blur-[100px]" />
+    </div>
+    <FadeIn className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1fr_0.82fr]">
       <div>
         <Badge>Recruiter infrastructure</Badge>
         <h1 className="mt-7 bg-linear-to-br from-text-secondary to-white bg-clip-text text-5xl font-bold tracking-tight text-transparent md:text-7xl md:leading-[0.95]">
           Stop Screening Resumes. Start Screening Skills.
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-8 text-text-secondary md:text-xl">
-          Automatically evaluate candidates with real assessments - not keywords.
+          Automatically evaluate candidates with real assessments - not
+          keywords.
         </p>
         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
           <Button to="/auth">Start Hiring</Button>
@@ -347,7 +425,10 @@ const Hero = () => (
 );
 
 const TrustStrip = () => (
-  <Section tone="secondary" className="border-y border-border-default py-16 md:py-16">
+  <Section
+    tone="secondary"
+    className="border-y border-border-default py-16 md:py-16"
+  >
     <div className="grid items-center gap-8 md:grid-cols-[0.85fr_1.15fr]">
       <p className="text-sm font-semibold uppercase tracking-[0.16em] text-text-tertiary">
         Used by teams that hire for skill, not keywords
@@ -369,20 +450,33 @@ const TrustStrip = () => (
 const HowItWorks = () => (
   <Section id="how-it-works" tone="primary">
     <div className="mx-auto max-w-3xl text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">Workflow</p>
-      <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">One link replaces the resume pile.</h2>
-      <p className="mt-5 text-lg text-text-secondary">Create the role, send the assessment, review ranked evidence.</p>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
+        Workflow
+      </p>
+      <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+        One link replaces the resume pile.
+      </h2>
+      <p className="mt-5 text-lg text-text-secondary">
+        Create the role, send the assessment, review ranked evidence.
+      </p>
     </div>
 
     <div className="relative mt-16 grid gap-5 md:grid-cols-3">
       <div className="absolute left-[16%] right-[16%] top-9 hidden h-px bg-border-default md:block" />
       {steps.map((step) => (
-        <Card key={step.title} className="relative bg-secondary p-7 text-center">
+        <Card
+          key={step.title}
+          className="relative bg-secondary p-7 text-center"
+        >
           <div className="mx-auto grid h-18 w-18 place-items-center rounded-lg border border-accent/30 bg-primary font-mono text-sm font-semibold text-accent shadow-[0_0_26px_rgba(91,109,246,0.12)]">
             {step.icon}
           </div>
-          <h3 className="mt-6 text-xl font-bold tracking-tight text-text-primary">{step.title}</h3>
-          <p className="mt-3 text-sm leading-6 text-text-secondary">{step.text}</p>
+          <h3 className="mt-6 text-xl font-bold tracking-tight text-text-primary">
+            {step.title}
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-text-secondary">
+            {step.text}
+          </p>
         </Card>
       ))}
     </div>
@@ -390,19 +484,33 @@ const HowItWorks = () => (
 );
 
 const ProductDeepDive = () => (
-  <Section id="product" tone="secondary" className="border-y border-border-default">
+  <Section
+    id="product"
+    tone="secondary"
+    className="border-y border-border-default"
+  >
     <div className="grid items-center gap-14 lg:grid-cols-2">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">Evaluation system</p>
-        <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">Scores you can defend in a hiring meeting.</h2>
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
+          Evaluation system
+        </p>
+        <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+          Scores you can defend in a hiring meeting.
+        </h2>
         <p className="mt-5 max-w-xl text-lg leading-8 text-text-secondary">
-          SkillGate evaluates responses against a structured rubric, explains the reasoning, and ranks candidates by role fit.
+          SkillGate evaluates responses against a structured rubric, explains
+          the reasoning, and ranks candidates by role fit.
         </p>
         <div className="mt-9 grid gap-4 sm:grid-cols-3">
           {["Scoring", "AI reasoning", "Structured results"].map((item) => (
-            <div key={item} className="rounded-lg border border-border-default bg-primary p-4">
+            <div
+              key={item}
+              className="rounded-lg border border-border-default bg-primary p-4"
+            >
               <p className="text-sm font-semibold text-text-primary">{item}</p>
-              <p className="mt-2 text-xs leading-5 text-text-tertiary">Inspectable on every submission.</p>
+              <p className="mt-2 text-xs leading-5 text-text-tertiary">
+                Inspectable on every submission.
+              </p>
             </div>
           ))}
         </div>
@@ -412,23 +520,38 @@ const ProductDeepDive = () => (
         <div className="rounded-lg border border-border-default bg-secondary p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-text-primary">Candidate response</p>
-              <p className="mt-1 text-xs text-text-tertiary">Question 4 - debugging a failed webhook retry</p>
+              <p className="text-sm font-semibold text-text-primary">
+                Candidate response
+              </p>
+              <p className="mt-1 text-xs text-text-tertiary">
+                Question 4 - debugging a failed webhook retry
+              </p>
             </div>
             <div className="text-right">
-              <p className="font-mono text-3xl font-semibold text-success">92</p>
+              <p className="font-mono text-3xl font-semibold text-success">
+                92
+              </p>
               <p className="text-xs text-text-tertiary">score</p>
             </div>
           </div>
 
           <div className="mt-5 rounded-lg border border-border-default bg-primary p-4 font-mono text-xs leading-6 text-text-secondary transition-colors hover:border-accent/45 hover:text-text-primary">
-            Adds idempotency key, separates transient failures from validation errors, and logs retry state before queue handoff.
+            Adds idempotency key, separates transient failures from validation
+            errors, and logs retry state before queue handoff.
           </div>
 
           <div className="mt-4 grid gap-3">
             {[
-              ["Correctness", "Handles duplicate events and retry ordering.", "95%"],
-              ["Reasoning", "Explains why each failure path is isolated.", "90%"],
+              [
+                "Correctness",
+                "Handles duplicate events and retry ordering.",
+                "95%",
+              ],
+              [
+                "Reasoning",
+                "Explains why each failure path is isolated.",
+                "90%",
+              ],
               ["Communication", "Clear steps with minimal ambiguity.", "88%"],
             ].map(([label, detail, score]) => (
               <div
@@ -436,8 +559,13 @@ const ProductDeepDive = () => (
                 className="rounded-lg border border-border-default bg-primary p-4 transition-all duration-200 hover:border-accent/45 hover:bg-tertiary"
               >
                 <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm font-semibold text-text-primary">{label}</p>
-                  <Badge tone={scoreTone(Number.parseInt(score, 10))} className="font-mono transition-transform duration-200 hover:scale-[1.04]">
+                  <p className="text-sm font-semibold text-text-primary">
+                    {label}
+                  </p>
+                  <Badge
+                    tone={scoreTone(Number.parseInt(score, 10))}
+                    className="font-mono transition-transform duration-200 hover:scale-[1.04]"
+                  >
                     {score}
                   </Badge>
                 </div>
@@ -447,9 +575,12 @@ const ProductDeepDive = () => (
           </div>
 
           <div className="mt-4 rounded-lg border border-success/20 bg-success/10 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-success">AI summary</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-success">
+              AI summary
+            </p>
             <p className="mt-2 text-sm leading-6 text-text-secondary">
-              Strong practical judgment. Candidate would likely handle production incidents with low supervision.
+              Strong practical judgment. Candidate would likely handle
+              production incidents with low supervision.
             </p>
           </div>
         </div>
@@ -461,8 +592,12 @@ const ProductDeepDive = () => (
 const Differentiation = () => (
   <Section tone="tertiary">
     <div className="mb-14 max-w-2xl">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">No vague promises</p>
-      <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">Built for signal.</h2>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
+        No vague promises
+      </p>
+      <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+        Built for signal.
+      </h2>
     </div>
     <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
       {differentiators.map((item) => {
@@ -479,8 +614,12 @@ const Differentiation = () => (
             >
               {item.icon}
             </div>
-            <h3 className="mt-5 text-lg font-bold text-text-primary">{item.title}</h3>
-            <p className="mt-3 text-sm leading-6 text-text-secondary">{item.text}</p>
+            <h3 className="mt-5 text-lg font-bold text-text-primary">
+              {item.title}
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-text-secondary">
+              {item.text}
+            </p>
           </Card>
         );
       })}
@@ -492,32 +631,55 @@ const CandidateExperience = () => (
   <Section tone="primary">
     <div className="grid items-center gap-14 lg:grid-cols-[0.9fr_1.1fr]">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">Candidate experience</p>
-        <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">No login. No maze. Just the work.</h2>
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
+          Candidate experience
+        </p>
+        <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+          No login. No maze. Just the work.
+        </h2>
         <p className="mt-5 max-w-xl text-lg leading-8 text-text-secondary">
-          Candidates get a simple assessment flow that respects their time and gives every applicant the same path to prove ability.
+          Candidates get a simple assessment flow that respects their time and
+          gives every applicant the same path to prove ability.
         </p>
       </div>
 
       <Card className="bg-secondary p-5">
         <div className="grid gap-4 sm:grid-cols-4">
           {["Landing", "Questions", "Submit", "Done"].map((label, index) => (
-            <div key={label} className="relative rounded-lg border border-border-default bg-primary p-4 text-center">
-              {index < 3 && <span className="absolute left-full top-1/2 z-10 hidden h-px w-4 bg-border-default sm:block" />}
+            <div
+              key={label}
+              className="relative rounded-lg border border-border-default bg-primary p-4 text-center"
+            >
+              {index < 3 && (
+                <span className="absolute left-full top-1/2 z-10 hidden h-px w-4 bg-border-default sm:block" />
+              )}
               <div className="mx-auto grid h-9 w-9 place-items-center rounded-md bg-tertiary font-mono text-xs font-semibold text-accent">
                 {index + 1}
               </div>
-              <p className="mt-4 text-sm font-semibold text-text-primary">{label}</p>
+              <p className="mt-4 text-sm font-semibold text-text-primary">
+                {label}
+              </p>
               <p className="mt-2 text-xs leading-5 text-text-tertiary">
-                {["Open link", "Answer cleanly", "One click", "Confirmed"][index]}
+                {
+                  ["Open link", "Answer cleanly", "One click", "Confirmed"][
+                    index
+                  ]
+                }
               </p>
             </div>
           ))}
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {["No candidate account", "Simple assessment flow", "Fair evaluation"].map((item) => (
-            <div key={item} className="rounded-lg border border-border-default bg-primary p-4 text-sm font-medium text-text-secondary">
+          {[
+            "No candidate account",
+            "Simple assessment flow",
+            "Fair evaluation",
+          ].map((item) => (
+            <div
+              key={item}
+              className="rounded-lg border border-border-default bg-primary p-4 text-sm font-medium text-text-secondary"
+            >
               {item}
             </div>
           ))}
@@ -528,10 +690,18 @@ const CandidateExperience = () => (
 );
 
 const Pricing = () => (
-  <Section id="pricing" tone="secondary" className="border-y border-border-default">
+  <Section
+    id="pricing"
+    tone="secondary"
+    className="border-y border-border-default"
+  >
     <div className="mx-auto max-w-3xl text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">Pricing</p>
-      <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">Pay for better signal, not more review time.</h2>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
+        Pricing
+      </p>
+      <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+        Pay for better signal, not more review time.
+      </h2>
     </div>
 
     <div className="mt-16 grid gap-6 lg:grid-cols-3">
@@ -539,36 +709,56 @@ const Pricing = () => (
         <Card
           key={plan.name}
           className={`p-7 hover:scale-[1.015] ${
-            plan.highlighted ? "-mt-3 border-accent/55 bg-tertiary shadow-[0_24px_80px_rgba(91,109,246,0.14)]" : "bg-primary"
+            plan.highlighted
+              ? "-mt-3 border-accent/55 bg-tertiary shadow-[0_24px_80px_rgba(91,109,246,0.14)]"
+              : "bg-primary"
           }`}
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-xl font-bold text-text-primary">{plan.name}</h3>
+              <h3 className="text-xl font-bold text-text-primary">
+                {plan.name}
+              </h3>
               <p className="mt-1 text-sm text-text-tertiary">{plan.audience}</p>
             </div>
             {plan.highlighted && <Badge>Popular</Badge>}
           </div>
           <div className="mt-8 flex items-end gap-1">
-            <span className="text-4xl font-bold tracking-tight text-text-primary">{plan.price}</span>
-            <span className="pb-1 text-sm text-text-tertiary">{plan.cadence}</span>
+            <span className="text-4xl font-bold tracking-tight text-text-primary">
+              {plan.price}
+            </span>
+            <span className="pb-1 text-sm text-text-tertiary">
+              {plan.cadence}
+            </span>
           </div>
           <div className="my-7 h-px bg-border-default" />
           <ul className="space-y-3">
             {plan.features.map((feature) => (
-              <li key={feature} className="flex items-start gap-3 text-sm text-text-secondary">
+              <li
+                key={feature}
+                className="flex items-start gap-3 text-sm text-text-secondary"
+              >
                 <IncludedIcon />
                 {feature}
               </li>
             ))}
             {plan.unavailable.map((feature) => (
-              <li key={feature} className="flex items-start gap-3 text-sm text-text-tertiary/70">
+              <li
+                key={feature}
+                className="flex items-start gap-3 text-sm text-text-tertiary/70"
+              >
                 <UnavailableIcon />
-                <span className="line-through decoration-border-default">{feature}</span>
+                <span className="line-through decoration-border-default">
+                  {feature}
+                </span>
               </li>
             ))}
           </ul>
-          <Button to="/auth" variant={plan.highlighted ? "primary" : "secondary"} className="mt-8 w-full">
+          <Button
+            to="/auth"
+            variant={plan.highlighted ? "primary" : "secondary"}
+            className="mt-8 w-full"
+          >
             {plan.cta}
           </Button>
         </Card>
@@ -584,28 +774,41 @@ const FAQ = () => {
     <Section tone="primary">
       <div className="grid gap-12 lg:grid-cols-[0.75fr_1.25fr]">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">FAQ</p>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">Questions hiring teams ask first.</h2>
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
+            FAQ
+          </p>
+          <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+            Questions hiring teams ask first.
+          </h2>
         </div>
         <div className="space-y-3">
           {faqs.map((item, index) => {
             const active = open === index;
             return (
-              <div key={item.question} className="rounded-lg border border-border-default bg-secondary">
+              <div
+                key={item.question}
+                className="rounded-lg border border-border-default bg-secondary"
+              >
                 <button
                   type="button"
                   className="flex w-full items-center justify-between gap-4 p-5 text-left"
                   onClick={() => setOpen(active ? -1 : index)}
                   aria-expanded={active}
                 >
-                  <span className="text-base font-semibold text-text-primary">{item.question}</span>
+                  <span className="text-base font-semibold text-text-primary">
+                    {item.question}
+                  </span>
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-border-default bg-primary text-text-secondary">
                     {active ? "-" : "+"}
                   </span>
                 </button>
-                <div className={`grid transition-all duration-200 ${active ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                <div
+                  className={`grid transition-all duration-200 ${active ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+                >
                   <div className="overflow-hidden">
-                    <p className="px-5 pb-5 text-sm leading-6 text-text-secondary">{item.answer}</p>
+                    <p className="px-5 pb-5 text-sm leading-6 text-text-secondary">
+                      {item.answer}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -620,7 +823,9 @@ const FAQ = () => {
 const FinalCTA = () => (
   <Section tone="tertiary">
     <div className="mx-auto max-w-3xl text-center">
-      <h2 className="text-4xl font-bold tracking-tight text-text-primary md:text-6xl">Hire based on skill. Not guesswork.</h2>
+      <h2 className="text-4xl font-bold tracking-tight text-text-primary md:text-6xl">
+        Hire based on skill. Not guesswork.
+      </h2>
       <div className="mt-9">
         <Button to="/auth" variant="inverse">
           Start Hiring
@@ -639,11 +844,17 @@ const Footer = () => (
           alt="SkillGate logo"
           className="h-8 w-8 rounded-lg border border-accent/30 object-cover"
         />
-        <span className="font-bold tracking-tight text-text-primary">SkillGate</span>
+        <span className="font-bold tracking-tight text-text-primary">
+          SkillGate
+        </span>
       </div>
       <div className="flex flex-wrap gap-6">
         {["Product", "Pricing", "Contact", "Terms"].map((item) => (
-          <a key={item} href={item === "Pricing" ? "#pricing" : "#"} className="text-sm text-text-tertiary hover:text-text-primary">
+          <a
+            key={item}
+            href={item === "Pricing" ? "#pricing" : "#"}
+            className="text-sm text-text-tertiary hover:text-text-primary"
+          >
             {item}
           </a>
         ))}
