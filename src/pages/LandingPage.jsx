@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import skillGateLogo from "../assets/skillGate-logo.png";
 
@@ -406,45 +406,132 @@ const Hero = () => (
   </section>
 );
 
-const TrustStrip = () => {
-  const logos = ["Northstar", "Aperture", "Vector", "Layer"];
+const CountUp = ({ end, duration = 1200, suffix = "" }) => {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const increment = end / (duration / 16);
+
+    const counter = setInterval(() => {
+      start += increment;
+      if (start >= end) {
+        setValue(end);
+        clearInterval(counter);
+      } else {
+        setValue(Math.floor(start));
+      }
+    }, 16);
+
+    return () => clearInterval(counter);
+  }, [end, duration]);
 
   return (
-    <Section
-      tone="secondary"
-      className="border-y border-border-default py-16 md:py-16"
-    >
-      <style>{`
-        @keyframes skillgate-marquee {
-          from {
-            transform: translateX(0);
-          }
-          to {
-            transform: translateX(-50%);
-          }
-        }
-      `}</style>
-      <div className="grid items-center gap-8 md:grid-cols-[0.85fr_1.15fr]">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-text-tertiary">
-          Used by teams that hire for skill, not keywords
+    <span>
+      {value.toLocaleString()}
+      {suffix}
+    </span>
+  );
+};
+
+const TrustStrip = () => {
+  const stats = [
+    {
+      value: 2400,
+      suffix: "+",
+      label: "Assessments generated & evaluated",
+    },
+    {
+      value: 94,
+      suffix: "%",
+      label: "Matches human recruiter decisions",
+      highlight: true,
+    },
+    {
+      value: 10,
+      suffix: "h",
+      label: "Saved per hire (avg screening time)",
+    },
+  ];
+
+  const logos = [
+    { name: "Northstar", mono: "https://t3.ftcdn.net/jpg/02/90/67/60/360_F_290676051_dVBMwaJOBDDGlSAnVOnE5YI6C5aKDgjh.jpg" },
+    { name: "Aperture", mono: "https://upload.wikimedia.org/wikipedia/commons/2/23/Aperture_Science_logo_%28light_grey_background%29.png" },
+    { name: "Vector", mono: "https://png.pngtree.com/element_our/png/20180926/eagle-bird-logo-vector-template.-business-logo-concept-png_113252.jpg" },
+    { name: "Layer", mono: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS6V4ALNSw7Cv8U8riCgJw_-QOy9sdjWtFcig&s" },
+  ];
+
+  return (
+    <section className="relative border-y border-border-default bg-secondary py-24 overflow-hidden">
+      <div className="relative mx-auto max-w-7xl px-6">
+
+        {/* Top label */}
+        <p className="mb-16 text-center text-xs font-semibold uppercase tracking-[0.22em] text-text-tertiary">
+          Trusted by hiring teams that prioritize real skills over resumes
         </p>
-        <div className="group overflow-hidden">
-          <div
-            className="flex w-max gap-4 group-hover:[animation-play-state:paused]"
-            style={{ animation: "skillgate-marquee 12s linear infinite" }}
-          >
-            {[...logos, ...logos].map((logo, index) => (
-              <div
-                key={`${logo}-${index}`}
-                className="w-36 shrink-0 rounded-lg border border-border-default bg-primary px-5 py-4 text-center text-sm font-semibold text-text-tertiary transition-colors hover:text-text-primary"
+
+        {/* Stats */}
+        <div className="flex flex-col items-center justify-center gap-10 md:flex-row md:gap-0 md:divide-x md:divide-border-default">
+
+          {stats.map((stat, i) => (
+            <div
+              key={i}
+              className={`group relative flex flex-col items-center gap-3 px-12 text-center transition-all duration-300`}
+            >
+              {/* glow effect on hover */}
+              <div className="absolute inset-0 rounded-xl opacity-0 blur-xl transition group-hover:opacity-100 bg-accent/10" />
+
+              <span
+                className={`relative font-bold tracking-tight leading-none 
+                ${stat.highlight
+                    ? "text-6xl bg-linear-to-r from-accent to-indigo-300 bg-clip-text text-transparent"
+                    : "text-5xl text-text-primary"
+                  }`}
               >
-                {logo}
-              </div>
-            ))}
-          </div>
+                <CountUp end={stat.value} suffix={stat.suffix} />
+              </span>
+
+              <span className="relative max-w-[180px] text-sm text-text-tertiary leading-relaxed">
+                {stat.label}
+              </span>
+            </div>
+          ))}
+
         </div>
+
+        {/* Divider */}
+        <div className="my-16 h-px w-full bg-linear-to-r from-transparent via-border-default to-transparent" />
+
+        {/* Logo section */}
+        <div className="flex flex-wrap items-center justify-center gap-5">
+
+          <p className="w-full text-center text-xs font-semibold uppercase tracking-[0.18em] text-text-tertiary mb-3">
+            Used by early teams building smarter hiring pipelines
+          </p>
+
+        
+          {logos.map((logo) => (
+            <div
+              key={logo.name}
+              className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-primary px-8 py-5 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:bg-tertiary hover:shadow-[0_10px_30px_rgba(91,109,246,0.12)]"
+            >
+              {/* subtle glow */}
+              <div className="absolute inset-0 rounded-xl opacity-0 blur-xl transition group-hover:opacity-100 bg-accent/10" />
+
+              <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent/10 text-sm font-bold text-accent">
+                <img src={logo.mono} alt="logo" className="h-6 w-6 rounded-lg border border-accent/30 object-cover" />
+              </span>
+
+              <span className="relative text-base font-semibold text-text-secondary transition-all duration-200 group-hover:text-text-primary">
+                {logo.name}
+              </span>
+            </div>
+          ))}
+
+        </div>
+
       </div>
-    </Section>
+    </section>
   );
 };
 
