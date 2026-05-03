@@ -7,7 +7,11 @@ const demoRoles = [
     id: "frontend",
     title: "Frontend Engineer",
     icon: "⚛️",
-    bullets: ["React state architecture", "Accessibility tradeoffs", "Performance debugging"],
+    bullets: [
+      "React state architecture",
+      "Accessibility tradeoffs",
+      "Performance debugging",
+    ],
   },
   {
     id: "backend",
@@ -33,10 +37,15 @@ export const RoleCard = ({ role, onSelect }) => (
       <div className="grid h-14 w-14 place-items-center rounded-xl border border-border-default bg-primary text-3xl transition-all duration-200 group-hover:border-accent/50 group-hover:bg-accent-soft">
         {role.icon}
       </div>
-      <h2 className="mt-7 text-2xl font-bold tracking-tight text-text-primary">{role.title}</h2>
+      <h2 className="mt-7 text-2xl font-bold tracking-tight text-text-primary">
+        {role.title}
+      </h2>
       <ul className="mt-6 space-y-3">
         {role.bullets.map((bullet) => (
-          <li key={bullet} className="flex items-start gap-3 text-sm leading-6 text-text-secondary">
+          <li
+            key={bullet}
+            className="flex items-start gap-3 text-sm leading-6 text-text-secondary"
+          >
             <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent/80" />
             {bullet}
           </li>
@@ -57,13 +66,27 @@ const DemoLanding = () => {
   };
 
   return (
-    <main className="min-h-screen bg-primary px-6 py-16 text-text-primary">
-      <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col items-center justify-center">
+    <main className="relative min-h-screen overflow-hidden bg-primary px-6 py-16 text-text-primary">
+      {/* Background */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div
+          className="absolute inset-0 opacity-[0.15]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, #5b6df6 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+        <div className="absolute left-1/2 top-0 h-125 w-125 -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]" />
+      </div>
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col items-center justify-center">
         <Badge variant="info" className="px-3 py-1">
           Live Demo · No signup required
         </Badge>
         <div className="mt-7 max-w-3xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Experience SkillGate in 2 minutes</h1>
+          <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
+            Experience SkillGate in 2 minutes
+          </h1>
           <p className="mt-5 text-lg leading-8 text-text-secondary md:text-xl">
             Pick a role. Answer 5 questions. See how our AI screens candidates.
           </p>
@@ -75,8 +98,11 @@ const DemoLanding = () => {
           ))}
         </section>
       </div>
-      <div className="flex items-center justify-center">
-        <button onClick={() => navigate("/")} className="rounded-md  bg-accent px-4 py-2 text-white hover:bg-accent/80">
+      <div className="relative z-10 flex items-center justify-center">
+        <button
+          onClick={() => navigate("/")}
+          className="rounded-md  bg-accent px-4 py-2 text-white hover:bg-accent/80"
+        >
           Go Back
         </button>
       </div>

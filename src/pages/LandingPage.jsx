@@ -20,24 +20,6 @@ const candidates = [
   { name: "Noah S.", role: "Debugging", score: 58, status: "Rejected" },
 ];
 
-const steps = [
-  {
-    icon: "01",
-    title: "Create Job",
-    text: "Paste the role, seniority, and the skills that matter.",
-  },
-  {
-    icon: "02",
-    title: "AI Generates Assessment",
-    text: "SkillGate turns requirements into practical questions and scoring rubrics.",
-  },
-  {
-    icon: "03",
-    title: "Get Ranked Candidates",
-    text: "Send one link and review a ranked slate with reasoning attached.",
-  },
-];
-
 const differentiators = [
   {
     icon: "B",
@@ -466,47 +448,139 @@ const TrustStrip = () => {
   );
 };
 
-const HowItWorks = () => (
-  <Section id="how-it-works" tone="primary">
-    <div className="mx-auto max-w-3xl text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
-        Workflow
-      </p>
-      <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
-        One link replaces the resume pile.
-      </h2>
-      <p className="mt-5 text-lg text-text-secondary">
-        Create the role, send the assessment, review ranked evidence.
-      </p>
-    </div>
+const HowItWorks = () => {
+  const steps = [
+    {
+      icon: "briefcase",
+      number: "01",
+      title: "Create Job",
+      text: "Paste the role, seniority, and the skills that matter.",
+    },
+    {
+      icon: "sparkles",
+      number: "02",
+      title: "AI Generates Assessment",
+      text: "SkillGate turns requirements into practical questions and scoring rubrics.",
+    },
+    {
+      icon: "link",
+      number: "03",
+      title: "Share Link",
+      text: "Send one secure assessment link directly to your candidates.",
+    },
+    {
+      icon: "pencil",
+      number: "04",
+      title: "Candidates Assessed",
+      text: "Candidates complete a timed, structured test with no login required.",
+    },
+    {
+      icon: "chart",
+      number: "05",
+      title: "Review Ranked Results",
+      text: "Get a ranked slate of candidates with AI reasoning attached to every score.",
+    },
+  ];
 
-    <div className="relative mt-16 grid gap-5 md:grid-cols-3">
-      <div
-        className="absolute left-[16%] right-[16%] top-9 hidden h-px md:block"
-        style={{
-          background:
-            "linear-gradient(to right, transparent, #5b6df6 30%, #5b6df6 70%, transparent)",
-        }}
-      />
-      {steps.map((step) => (
-        <Card
-          key={step.title}
-          className="relative bg-secondary p-7 text-center"
-        >
-          <div className="mx-auto grid h-18 w-18 place-items-center rounded-lg border border-accent/30 bg-primary font-mono text-sm font-semibold text-accent shadow-[0_0_26px_rgba(91,109,246,0.12)]">
-            {step.icon}
-          </div>
-          <h3 className="mt-6 text-xl font-bold tracking-tight text-text-primary">
-            {step.title}
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-text-secondary">
-            {step.text}
-          </p>
-        </Card>
-      ))}
-    </div>
-  </Section>
-);
+  const iconProps = {
+    "aria-hidden": "true",
+    viewBox: "0 0 24 24",
+    className: "h-6 w-6",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.8",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  };
+
+  const icons = {
+    briefcase: (
+      <svg {...iconProps}>
+        <path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1" />
+        <path d="M4 7h16a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1Z" />
+        <path d="M3 12h18" />
+        <path d="M10 12v1h4v-1" />
+      </svg>
+    ),
+    sparkles: (
+      <svg {...iconProps}>
+        <path d="m12 3 1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3Z" />
+        <path d="m5 14 .8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14Z" />
+        <path d="m19 13 .7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7L19 13Z" />
+      </svg>
+    ),
+    link: (
+      <svg {...iconProps}>
+        <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+        <path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1" />
+      </svg>
+    ),
+    pencil: (
+      <svg {...iconProps}>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </svg>
+    ),
+    chart: (
+      <svg {...iconProps}>
+        <path d="M3 3v18h18" />
+        <path d="M7 15v2" />
+        <path d="M11 11v6" />
+        <path d="M15 7v10" />
+        <path d="M19 13v4" />
+      </svg>
+    ),
+  };
+
+  return (
+    <Section id="how-it-works" tone="primary">
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
+          Workflow
+        </p>
+        <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+          One link replaces the resume pile.
+        </h2>
+        <p className="mt-5 text-lg text-text-secondary">
+          Create the role, send the assessment, review ranked evidence.
+        </p>
+      </div>
+
+      <div className="relative mt-16">
+        <div className="absolute bottom-8 left-8 top-8 w-px bg-accent/30 md:hidden" />
+        <div
+          className="absolute left-[10%] right-[10%] top-8 z-0 hidden h-px opacity-30 md:block"
+          style={{ background: "linear-gradient(to right, #5b6df6, #5b6df6)" }}
+        />
+
+        <div className="relative z-10 grid gap-9 md:grid-cols-5 md:gap-0">
+          {steps.map((step) => (
+            <div
+              key={step.title}
+              className="relative flex items-start gap-5 md:flex-col md:items-center md:gap-0"
+            >
+              <div className="relative z-10 grid h-16 w-16 shrink-0 place-items-center rounded-full border border-accent/30 bg-secondary text-accent transition-all duration-200 hover:scale-105 hover:border-accent/70">
+                {icons[step.icon]}
+                <span className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-accent text-xs font-bold text-white">
+                  {step.number}
+                </span>
+              </div>
+
+              <div className="min-w-0 pt-1 md:pt-0">
+                <h3 className="text-base font-bold text-text-primary md:mt-5 md:text-center">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-text-secondary md:mx-auto md:max-w-[160px] md:text-center">
+                  {step.text}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Section>
+  );
+};
 
 const ProductDeepDive = () => (
   <Section
