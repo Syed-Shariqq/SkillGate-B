@@ -424,28 +424,47 @@ const Hero = () => (
   </section>
 );
 
-const TrustStrip = () => (
-  <Section
-    tone="secondary"
-    className="border-y border-border-default py-16 md:py-16"
-  >
-    <div className="grid items-center gap-8 md:grid-cols-[0.85fr_1.15fr]">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-text-tertiary">
-        Used by teams that hire for skill, not keywords
-      </p>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {["Northstar", "Aperture", "Vector", "Layer"].map((logo) => (
+const TrustStrip = () => {
+  const logos = ["Northstar", "Aperture", "Vector", "Layer"];
+
+  return (
+    <Section
+      tone="secondary"
+      className="border-y border-border-default py-16 md:py-16"
+    >
+      <style>{`
+        @keyframes skillgate-marquee {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-50%);
+          }
+        }
+      `}</style>
+      <div className="grid items-center gap-8 md:grid-cols-[0.85fr_1.15fr]">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-text-tertiary">
+          Used by teams that hire for skill, not keywords
+        </p>
+        <div className="group overflow-hidden">
           <div
-            key={logo}
-            className="rounded-lg border border-border-default bg-primary px-5 py-4 text-center text-sm font-semibold text-text-tertiary transition-colors hover:text-text-primary"
+            className="flex w-max gap-4 group-hover:[animation-play-state:paused]"
+            style={{ animation: "skillgate-marquee 12s linear infinite" }}
           >
-            {logo}
+            {[...logos, ...logos].map((logo, index) => (
+              <div
+                key={`${logo}-${index}`}
+                className="w-36 shrink-0 rounded-lg border border-border-default bg-primary px-5 py-4 text-center text-sm font-semibold text-text-tertiary transition-colors hover:text-text-primary"
+              >
+                {logo}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
-    </div>
-  </Section>
-);
+    </Section>
+  );
+};
 
 const HowItWorks = () => (
   <Section id="how-it-works" tone="primary">
@@ -462,7 +481,13 @@ const HowItWorks = () => (
     </div>
 
     <div className="relative mt-16 grid gap-5 md:grid-cols-3">
-      <div className="absolute left-[16%] right-[16%] top-9 hidden h-px bg-border-default md:block" />
+      <div
+        className="absolute left-[16%] right-[16%] top-9 hidden h-px md:block"
+        style={{
+          background:
+            "linear-gradient(to right, transparent, #5b6df6 30%, #5b6df6 70%, transparent)",
+        }}
+      />
       {steps.map((step) => (
         <Card
           key={step.title}
@@ -589,6 +614,62 @@ const ProductDeepDive = () => (
   </Section>
 );
 
+const DifferentiatorIcon = ({ title }) => {
+  const sharedProps = {
+    "aria-hidden": "true",
+    viewBox: "0 0 20 20",
+    className: "h-5 w-5",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.8",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  };
+
+  if (title === "No resume bias") {
+    return (
+      <svg {...sharedProps}>
+        <path d="M6 2.75h5.25L15 6.5v10.75H6z" />
+        <path d="M11 2.75V6.5h4" />
+        <path d="M8 9h4" />
+        <path d="M8 12h3" />
+        <path d="M4 16 16 4" />
+      </svg>
+    );
+  }
+
+  if (title === "Standardized evaluation") {
+    return (
+      <svg {...sharedProps}>
+        <path d="M4 5.5h2" />
+        <path d="m3.75 10 1.15 1.15 2-2.3" />
+        <path d="M4 15h2" />
+        <path d="M10 5.5h6" />
+        <path d="M10 10h6" />
+        <path d="M10 15h6" />
+      </svg>
+    );
+  }
+
+  if (title === "Real skill signals") {
+    return (
+      <svg {...sharedProps}>
+        <path d="M3.5 16.5h13" />
+        <path d="M5.5 13.5v-3" />
+        <path d="M10 13.5v-7" />
+        <path d="M14.5 13.5v-9" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...sharedProps}>
+      <circle cx="10" cy="10" r="7" />
+      <path d="M10 6v4l2.5 2" />
+    </svg>
+  );
+};
+
 const Differentiation = () => (
   <Section tone="tertiary">
     <div className="mb-14 max-w-2xl">
@@ -612,7 +693,7 @@ const Differentiation = () => (
                   : "border-border-default text-text-tertiary"
               }`}
             >
-              {item.icon}
+              <DifferentiatorIcon title={item.title} />
             </div>
             <h3 className="mt-5 text-lg font-bold text-text-primary">
               {item.title}
@@ -821,18 +902,31 @@ const FAQ = () => {
 };
 
 const FinalCTA = () => (
-  <Section tone="tertiary">
-    <div className="mx-auto max-w-3xl text-center">
-      <h2 className="text-4xl font-bold tracking-tight text-text-primary md:text-6xl">
-        Hire based on skill. Not guesswork.
-      </h2>
-      <div className="mt-9">
-        <Button to="/auth" variant="inverse">
-          Start Hiring
-        </Button>
-      </div>
+  <section className="relative overflow-hidden bg-tertiary px-6 py-24 md:py-32">
+    <div className="pointer-events-none absolute inset-0 z-0">
+      <div
+        className="absolute inset-0 opacity-[0.15]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, #5b6df6 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      <div className="absolute left-1/2 top-0 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]" />
     </div>
-  </Section>
+    <FadeIn className="relative z-10 mx-auto max-w-7xl">
+      <div className="mx-auto max-w-3xl text-center">
+        <h2 className="text-4xl font-bold tracking-tight text-text-primary md:text-6xl">
+          Hire based on skill. Not guesswork.
+        </h2>
+        <div className="mt-9">
+          <Button to="/auth" variant="inverse">
+            Start Hiring
+          </Button>
+        </div>
+      </div>
+    </FadeIn>
+  </section>
 );
 
 const Footer = () => (
