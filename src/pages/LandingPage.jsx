@@ -502,32 +502,35 @@ const TrustStrip = () => {
         {/* Divider */}
         <div className="my-16 h-px w-full bg-linear-to-r from-transparent via-border-default to-transparent" />
 
-        {/* Logo section */}
-        <div className="flex flex-wrap items-center justify-center gap-5">
+        {/* ── Infinite logo marquee ── */}
+        <div className="overflow-hidden marquee-wrapper marquee-fade">
+          {/* flex w-max holds ALL items (original + duplicate) side-by-side */}
+          {/* The CSS animation slides it -50% (= one full set width), then loops */}
+          <div className="animate-marquee flex w-max items-center gap-5">
+            {[...logos, ...logos].map((logo, idx) => (
+              <div
+                key={`${logo.name}-${idx}`}
+                className="group relative flex shrink-0 items-center gap-3 rounded-xl border border-border-default bg-primary px-8 py-5 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:bg-tertiary hover:shadow-[0_10px_30px_rgba(91,109,246,0.12)]"
+              >
+                {/* per-card accent glow — composited separately from the marquee */}
+                <span className="pointer-events-none absolute inset-0 rounded-xl bg-accent/10 opacity-0 blur-xl transition duration-300 group-hover:opacity-100" />
 
-          <p className="w-full text-center text-xs font-semibold uppercase tracking-[0.18em] text-text-tertiary mb-3">
-            Used by early teams building smarter hiring pipelines
-          </p>
+                <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent/10">
+                  <img
+                    src={logo.mono}
+                    alt={`${logo.name} logo`}
+                    className="h-6 w-6 rounded-md object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </span>
 
-        
-          {logos.map((logo) => (
-            <div
-              key={logo.name}
-              className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-primary px-8 py-5 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:bg-tertiary hover:shadow-[0_10px_30px_rgba(91,109,246,0.12)]"
-            >
-              {/* subtle glow */}
-              <div className="absolute inset-0 rounded-xl opacity-0 blur-xl transition group-hover:opacity-100 bg-accent/10" />
-
-              <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent/10 text-sm font-bold text-accent">
-                <img src={logo.mono} alt="logo" className="h-6 w-6 rounded-lg border border-accent/30 object-cover" />
-              </span>
-
-              <span className="relative text-base font-semibold text-text-secondary transition-all duration-200 group-hover:text-text-primary">
-                {logo.name}
-              </span>
-            </div>
-          ))}
-
+                <span className="relative text-base font-semibold text-text-secondary transition-colors duration-200 group-hover:text-text-primary">
+                  {logo.name}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>
