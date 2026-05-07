@@ -1,6 +1,7 @@
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-const GROK_URL = "https://api.x.ai/v1/chat/completions";
+const GROQ_URL =
+  "https://api.groq.com/openai/v1/chat/completions";
 
 function getGeminiText(payload) {
   const text = payload?.candidates?.[0]?.content?.parts
@@ -15,11 +16,11 @@ function getGeminiText(payload) {
   return text;
 }
 
-function getGrokText(payload) {
+function getGroqText(payload) {
   const text = payload?.choices?.[0]?.message?.content;
 
   if (typeof text !== "string" || text.length === 0) {
-    throw new Error("Grok returned no text");
+    throw new Error("GROQ returned no text");
   }
 
   return text;
@@ -74,21 +75,21 @@ export async function callGemini(prompt, maxTokens) {
   }
 }
 
-export async function callGrok(prompt, maxTokens) {
-  const apiKey = Deno.env.get("GROK_API_KEY");
+export async function callGroq(prompt, maxTokens) {
+  const apiKey = Deno.env.get("GROQ_API_KEY");
 
   if (!apiKey) {
-    throw new Error("Missing GROK_API_KEY");
+    throw new Error("Missing GROQ_API_KEY");
   }
 
-  const response = await fetch(GROK_URL, {
+  const response = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "grok-2-latest",
+      model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens,
     }),
@@ -96,11 +97,11 @@ export async function callGrok(prompt, maxTokens) {
 
   if (!response.ok) {
     const errBody = await response.text();
-    console.error("[ai] Grok HTTP error", response.status, errBody);
-    throw new Error(`Grok request failed: ${response.status}`);
+    console.error("[ai] GROQ HTTP error", response.status, errBody);
+    throw new Error(`GROQ request failed: ${response.status}`);
   }
 
-  return getGrokText(await response.json());
+  return getGroqText(await response.json());
 }
 
 export async function callAI(prompt, maxTokens) {
@@ -111,11 +112,11 @@ export async function callAI(prompt, maxTokens) {
   } catch (geminiError) {
     console.error("[ai] Gemini failed", geminiError.message);
     try {
-      const text = await callGrok(prompt, maxTokens);
-      console.log("[ai] provider used: grok");
+      const text = await callGroq(prompt, maxTokens);
+      console.log("[ai] provider used: groq");
       return { data: text, error: null };
-    } catch (grokError) {
-      console.error("[ai] Grok failed", grokError.message);
+    } catch (groqError) {
+      console.error("[ai] GROQ failed", groqError.message);
       return {
         data: null,
         error: { type: "AI_UNAVAILABLE", message: "All providers failed" },
