@@ -1232,7 +1232,7 @@ CONSTRAINTS:
         .from("notifications")
         .insert({
           recruiter_id: assessment.recruiter_id,
-          type: "new_candidate",
+          type: "assessment_complete",
           title: "New candidate result",
           message: `${candidateName} scored ${overallScore}% on ${job.title}`,
           assessment_id: assessmentId,

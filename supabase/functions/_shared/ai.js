@@ -126,20 +126,32 @@ export async function callAI(prompt, maxTokens) {
 }
 
 export function parseJSON(text) {
-  const cleaned = String(text)
-    .trim()
-    .replace(/^```(?:json)?\n?/i, "")
-    .replace(/\n?```$/i, "")
+  const raw = String(text).trim();
+
+  try {
+    return { data: JSON.parse(raw), error: null };
+  } catch (_) {}
+
+  const stripped = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
     .trim();
 
   try {
-    return { data: JSON.parse(cleaned), error: null };
-  } catch (_error) {
-    return {
-      data: null,
-      error: { type: "PARSE_ERROR", message: "Invalid JSON" },
-    };
+    return { data: JSON.parse(stripped), error: null };
+  } catch (_) {}
+
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      return { data: JSON.parse(match[0]), error: null };
+    } catch (_) {}
   }
+
+  return {
+    data: null,
+    error: { type: "PARSE_ERROR", message: "Invalid JSON" },
+  };
 }
 
 export function normalizeAIResponse(raw) {
