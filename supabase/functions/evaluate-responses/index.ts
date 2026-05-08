@@ -50,8 +50,42 @@ type CandidateResponse = {
   keyword_stuffing_flag?: boolean | null;
 };
 
+type ResponseUpdate = {
+  id: string;
+  is_correct: boolean;
+  score: number;
+  points_earned: number;
+  ai_feedback: string;
+  missed_concepts: string[];
+  time_taken_seconds: number;
+  updated_at: string;
+};
+
 type Candidate = {
   full_name: string | null;
+};
+
+type SkillScore = {
+  score: number;
+  earned: number;
+  possible: number;
+  verified: boolean;
+};
+
+type SkillScoreSummary = {
+  skill: string;
+  points_earned: number;
+  points_possible: number;
+  score: number;
+};
+
+type ImprovementResourceType = "concept" | "practice" | "project";
+
+type ImprovementResource = {
+  skill: string;
+  topic: string;
+  type: ImprovementResourceType;
+  suggestion: string;
 };
 
 type EvaluatedResponse = {
@@ -70,7 +104,7 @@ type Summary = {
   hiringSignal: string;
   strengths: string[];
   weaknesses: string[];
-  improvementResources: JsonRecord[];
+  improvementResources: ImprovementResource[];
 };
 
 const corsHeaders = {
@@ -141,8 +175,14 @@ function normalizeStringArray(value: unknown): string[] {
 
   return value
     .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+    .map((item: string) => item.trim())
+    .filter((item: string) => item.length > 0);
+}
+
+function isImprovementResourceType(
+  value: unknown,
+): value is ImprovementResourceType {
+  return value === "concept" || value === "practice" || value === "project";
 }
 
 function isValidEvaluation(data: unknown): boolean {
@@ -159,7 +199,7 @@ function isValidEvaluation(data: unknown): boolean {
   );
 }
 
-function isValidSummary(data: any): boolean {
+function isValidSummary(data: unknown): boolean {
   if (!isRecord(data)) {
     return false;
   }
@@ -227,7 +267,7 @@ function hasFlag(
   response: CandidateResponse,
   keys: Array<keyof CandidateResponse>,
 ): boolean {
-  return keys.some((key) => response[key] === true);
+  return keys.some((key: keyof CandidateResponse) => response[key] === true);
 }
 
 async function evaluateTextResponse(
@@ -327,7 +367,7 @@ async function evaluateResponses(
   job: Job,
 ): Promise<EvaluatedResponse[]> {
   return Promise.all(
-    questions.map(async (question) => {
+    questions.map(async (question: Question) => {
       const res = responseMap[question.id];
       const response = res ?? null;
       const answerGiven = res?.answer_given?.trim() ?? "";
@@ -398,7 +438,7 @@ async function evaluateResponses(
   );
 }
 
-function buildSkillScores(evaluated: EvaluatedResponse[]): JsonRecord[] {
+function buildSkillScores(evaluated: EvaluatedResponse[]): SkillScoreSummary[] {
   const skillMap = new Map<
     string,
     { pointsEarned: number; pointsPossible: number }
@@ -419,35 +459,43 @@ function buildSkillScores(evaluated: EvaluatedResponse[]): JsonRecord[] {
     skillMap.set(item.question.skill, current);
   }
 
-  return Array.from(skillMap.entries()).map(([skill, totals]) => ({
-    skill,
-    points_earned: totals.pointsEarned,
-    points_possible: totals.pointsPossible,
-    score:
-      totals.pointsPossible > 0
-        ? Number(((totals.pointsEarned / totals.pointsPossible) * 100).toFixed(2))
-        : 0,
-  }));
+  return Array.from(skillMap.entries()).map(
+    ([skill, totals]: [
+      string,
+      { pointsEarned: number; pointsPossible: number },
+    ]) => ({
+      skill,
+      points_earned: totals.pointsEarned,
+      points_possible: totals.pointsPossible,
+      score:
+        totals.pointsPossible > 0
+          ? Number(
+            ((totals.pointsEarned / totals.pointsPossible) * 100).toFixed(2),
+          )
+          : 0,
+    }),
+  );
 }
 
 function calculateConfidenceScore(
   evaluated: EvaluatedResponse[],
-  skillScores: JsonRecord[],
+  skillScores: SkillScoreSummary[],
   timeTakenSeconds: number,
   timeLimitMinutes: number | null,
 ): number {
   const numericSkillScores = skillScores
-    .map((skill) => Number(skill.score))
-    .filter((score) => Number.isFinite(score));
+    .map((skill: SkillScoreSummary) => Number(skill.score))
+    .filter((score: number) => Number.isFinite(score));
   const meanSkillScore =
     numericSkillScores.length > 0
-      ? numericSkillScores.reduce((sum, score) => sum + score, 0) /
+      ? numericSkillScores.reduce((sum: number, score: number) => sum + score, 0) /
         numericSkillScores.length
       : 0;
   const variance =
     numericSkillScores.length > 1
       ? numericSkillScores.reduce(
-          (sum, score) => sum + (score - meanSkillScore) ** 2,
+          (sum: number, score: number) =>
+            sum + (score - meanSkillScore) ** 2,
           0,
         ) / numericSkillScores.length
       : 0;
@@ -457,11 +505,16 @@ function calculateConfidenceScore(
   const timeFactor =
     timeLimitSeconds > 0 ? clampScore(timeTakenSeconds / timeLimitSeconds) : 0;
   const textAnswerLengths = evaluated
-    .filter((item) => item.question.question_type === "text")
-    .map((item) => item.response?.answer_given?.trim().length ?? 0);
+    .filter((item: EvaluatedResponse) => item.question.question_type === "text")
+    .map((item: EvaluatedResponse) =>
+      item.response?.answer_given?.trim().length ?? 0
+    );
   const averageTextLength =
     textAnswerLengths.length > 0
-      ? textAnswerLengths.reduce((sum, length) => sum + length, 0) /
+      ? textAnswerLengths.reduce(
+          (sum: number, length: number) => sum + length,
+          0,
+        ) /
         textAnswerLengths.length
       : 0;
   const depthFactor = clampScore(Math.min(averageTextLength, 300) / 300);
@@ -623,7 +676,10 @@ Deno.serve(async (req) => {
     }
 
     const responseMap = Object.fromEntries(
-      (responses ?? []).map((response) => [response.question_id, response]),
+      (responses ?? []).map((response: CandidateResponse) => [
+        response.question_id,
+        response,
+      ]),
     ) as Record<string, CandidateResponse>;
 
     const evaluated = await evaluateResponses(questions, responseMap, job);
@@ -631,8 +687,8 @@ Deno.serve(async (req) => {
 
     await Promise.allSettled(
       questions
-        .filter((question) => question.question_type === "mcq")
-        .map(async (question) => {
+        .filter((question: Question) => question.question_type === "mcq")
+        .map(async (question: Question) => {
           try {
             const res = responseMap[question.id];
 
@@ -698,11 +754,12 @@ Deno.serve(async (req) => {
         }),
     );
 
-    const responseUpdates = evaluated
+    const responseUpdates: ResponseUpdate[] = evaluated
       .filter(
-        (item) => item.response && item.question.question_type !== "mcq",
+        (item: EvaluatedResponse) =>
+          item.response && item.question.question_type !== "mcq",
       )
-      .map((item) => ({
+      .map((item: EvaluatedResponse) => ({
         id: item.response!.id,
         is_correct: item.isCorrect,
         score: Number(item.score.toFixed(2)),
@@ -716,7 +773,7 @@ Deno.serve(async (req) => {
     if (responseUpdates.length > 0) {
       try {
         await Promise.all(
-          responseUpdates.map(({ id, ...values }) =>
+          responseUpdates.map(({ id, ...values }: ResponseUpdate) =>
             supabase.from("responses").update(values).eq("id", id).throwOnError()
           ),
         );
@@ -741,10 +798,13 @@ Deno.serve(async (req) => {
     console.log("[evaluate] responses refetched", finalResponses?.length ?? 0);
 
     const finalResponseMap = Object.fromEntries(
-      (finalResponses ?? []).map((response) => [response.question_id, response]),
+      (finalResponses ?? []).map((response: CandidateResponse) => [
+        response.question_id,
+        response,
+      ]),
     ) as Record<string, CandidateResponse>;
 
-    const skillScores: JsonRecord = {};
+    const skillScores: Record<string, SkillScore> = {};
 
     for (const question of questions) {
       const skill = question.skill || "Uncategorized";
@@ -755,25 +815,21 @@ Deno.serve(async (req) => {
         0,
         possible,
       );
-      const current = (skillScores[skill] as JsonRecord | undefined) ?? {
+      const current = skillScores[skill] ?? {
         score: 0,
         earned: 0,
         possible: 0,
         verified: false,
       };
 
-      current.earned = safeNumber(current.earned) + earned;
-      current.possible = safeNumber(current.possible) + possible;
+      current.earned += earned;
+      current.possible += possible;
       skillScores[skill] = current;
     }
 
     for (const value of Object.values(skillScores)) {
-      if (!isRecord(value)) {
-        continue;
-      }
-
-      const earned = Math.max(0, safeNumber(value.earned));
-      const possible = Math.max(0, safeNumber(value.possible));
+      const earned = Math.max(0, value.earned);
+      const possible = Math.max(0, value.possible);
       const score = possible > 0 ? roundToOne((earned / possible) * 100) : 0;
 
       value.earned = roundToOne(earned);
@@ -784,13 +840,13 @@ Deno.serve(async (req) => {
 
     const totalEarned = roundToOne(
       Object.values(skillScores).reduce(
-        (sum, value) => sum + (isRecord(value) ? safeNumber(value.earned) : 0),
+        (sum: number, value: SkillScore) => sum + value.earned,
         0,
       ),
     );
     const totalPossible = roundToOne(
       Object.values(skillScores).reduce(
-        (sum, value) => sum + (isRecord(value) ? safeNumber(value.possible) : 0),
+        (sum: number, value: SkillScore) => sum + value.possible,
         0,
       ),
     );
@@ -812,16 +868,19 @@ Deno.serve(async (req) => {
       : timeLimit;
     const timeFactor = clampRange(timeTaken / timeLimit, 0, 1);
     const skillValues = Object.values(skillScores)
-      .filter(isRecord)
-      .map((skill) => safeNumber(skill.score))
-      .filter((score) => Number.isFinite(score));
+      .map((skill: SkillScore) => skill.score)
+      .filter((score: number) => Number.isFinite(score));
     const mean =
       skillValues.length > 0
-        ? skillValues.reduce((sum, score) => sum + score, 0) / skillValues.length
+        ? skillValues.reduce((sum: number, score: number) => sum + score, 0) /
+          skillValues.length
         : 0;
     const variance =
       skillValues.length > 0
-        ? skillValues.reduce((sum, score) => sum + (score - mean) ** 2, 0) /
+        ? skillValues.reduce(
+          (sum: number, score: number) => sum + (score - mean) ** 2,
+          0,
+        ) /
           skillValues.length
         : 0;
     const consistencyFactor =
@@ -829,33 +888,41 @@ Deno.serve(async (req) => {
         ? clampRange(1 - variance / 2500, 0, 1)
         : 0;
     const textAnswers = questions
-      .filter((question) => question.question_type === "text")
-      .map((question) => finalResponseMap[question.id]?.answer_given?.trim() ?? "")
-      .filter((answer) => answer.length > 0);
+      .filter((question: Question) => question.question_type === "text")
+      .map((question: Question) =>
+        finalResponseMap[question.id]?.answer_given?.trim() ?? ""
+      )
+      .filter((answer: string) => answer.length > 0);
     const avgLength =
       textAnswers.length > 0
-        ? textAnswers.reduce((sum, answer) => sum + answer.length, 0) /
+        ? textAnswers.reduce(
+          (sum: number, answer: string) => sum + answer.length,
+          0,
+        ) /
           textAnswers.length
         : 0;
     const depthFactor =
       textAnswers.length > 0 ? clampRange(avgLength / 300, 0, 1) : 0.5;
-    const suspiciousCount = (finalResponses ?? []).reduce((count, response) => {
-      const suspiciousFlags = hasFlag(response, [
-        "suspicious",
-        "is_suspicious",
-        "suspicious_flag",
-      ])
-        ? 1
-        : 0;
-      const keywordStuffingFlags = hasFlag(response, [
-        "keyword_stuffing",
-        "keyword_stuffing_flag",
-      ])
-        ? 1
-        : 0;
+    const suspiciousCount = (finalResponses ?? []).reduce(
+      (count: number, response: CandidateResponse) => {
+        const suspiciousFlags = hasFlag(response, [
+          "suspicious",
+          "is_suspicious",
+          "suspicious_flag",
+        ])
+          ? 1
+          : 0;
+        const keywordStuffingFlags = hasFlag(response, [
+          "keyword_stuffing",
+          "keyword_stuffing_flag",
+        ])
+          ? 1
+          : 0;
 
-      return count + suspiciousFlags + keywordStuffingFlags;
-    }, 0);
+        return count + suspiciousFlags + keywordStuffingFlags;
+      },
+      0,
+    );
     const suspiciousPenalty = Math.min(suspiciousCount * 0.15, 0.5);
     const confidenceScore = clampRange(
       roundToOne(
@@ -869,16 +936,15 @@ Deno.serve(async (req) => {
       100,
     );
     const skillBreakdownString = Object.entries(skillScores)
-      .map(([skill, value]) => {
-        const data = isRecord(value) ? value : {};
-        const score = roundToOne(safeNumber(data.score));
-        const verified = data.verified === true ? "verified" : "not verified";
+      .map(([skill, value]: [string, SkillScore]) => {
+        const score = roundToOne(value.score);
+        const verified = value.verified ? "verified" : "not verified";
 
         return `- ${skill}: ${score}% (${verified})`;
       })
       .join("\n");
     const questionPerformanceString = questions
-      .map((question) => {
+      .map((question: Question) => {
         const response = finalResponseMap[question.id];
         const earned = clampRange(
           safeNumber(response?.points_earned),
@@ -891,11 +957,11 @@ Deno.serve(async (req) => {
       })
       .join("\n");
     const weakSkills = Object.entries(skillScores)
-      .filter(([_skill, value]) => isRecord(value) && safeNumber(value.score) < 70)
-      .map(([skill]) => skill);
+      .filter(([_skill, value]: [string, SkillScore]) => value.score < 70)
+      .map(([skill]: [string, SkillScore]) => skill);
     const strongSkills = Object.entries(skillScores)
-      .filter(([_skill, value]) => isRecord(value) && safeNumber(value.score) >= 80)
-      .map(([skill]) => skill);
+      .filter(([_skill, value]: [string, SkillScore]) => value.score >= 80)
+      .map(([skill]: [string, SkillScore]) => skill);
 
     console.log("[evaluate] scoring calculated", {
       overallScore,
@@ -1004,39 +1070,47 @@ CONSTRAINTS:
           );
         } else {
           const rawSummary = parsedSummary.data as JsonRecord;
-          const allowedResourceTypes = ["concept", "practice", "project"];
           const strengths = normalizeStringArray(rawSummary.strengths)
-            .filter((skill) => strongSkills.includes(skill))
+            .filter((skill: string) => strongSkills.includes(skill))
             .slice(0, 3);
           const weaknesses = normalizeStringArray(rawSummary.weaknesses)
-            .filter((skill) => weakSkills.includes(skill))
+            .filter((skill: string) => weakSkills.includes(skill))
             .slice(0, 3);
           const improvementResources = Array.isArray(
             rawSummary.improvementResources,
           )
             ? rawSummary.improvementResources
               .filter(isRecord)
-              .filter((resource) => {
+              .filter((resource: JsonRecord) => {
                 const skill = resource.skill;
                 const type = resource.type;
 
                 return (
                   typeof skill === "string" &&
                   weakSkills.includes(skill) &&
-                  typeof type === "string" &&
-                  allowedResourceTypes.includes(type)
+                  isImprovementResourceType(type)
                 );
               })
-              .map((resource) => ({
-                skill: resource.skill as string,
-                topic:
-                  typeof resource.topic === "string" ? resource.topic : "",
-                type: resource.type as string,
-                suggestion:
+              .map((resource: JsonRecord): ImprovementResource => {
+                const skill =
+                  typeof resource.skill === "string" ? resource.skill : "";
+                const topic =
+                  typeof resource.topic === "string" ? resource.topic : "";
+                const type = isImprovementResourceType(resource.type)
+                  ? resource.type
+                  : "concept";
+                const suggestion =
                   typeof resource.suggestion === "string"
                     ? resource.suggestion
-                    : "",
-              }))
+                    : "";
+
+                return {
+                  skill,
+                  topic,
+                  type,
+                  suggestion,
+                };
+              })
               .slice(0, 4)
             : [];
 
@@ -1130,12 +1204,12 @@ CONSTRAINTS:
           type: "both",
         },
       })
-      .catch((err) =>
+      .catch((err: unknown) => {
         console.error(
           "[evaluate][send-email]",
-          err?.message || err,
-        )
-      );
+          err instanceof Error ? err.message : String(err),
+        );
+      });
 
     try {
       const { data: candidate, error: candidateError } = await supabase
