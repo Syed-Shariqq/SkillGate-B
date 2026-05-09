@@ -1,7 +1,6 @@
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-const GROQ_URL =
-  "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 function getGeminiText(payload) {
   const text = payload?.candidates?.[0]?.content?.parts
@@ -92,6 +91,7 @@ export async function callGroq(prompt, maxTokens) {
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens,
+      response_format: { type: "json_object" },
     }),
   });
 
@@ -113,6 +113,7 @@ export async function callAI(prompt, maxTokens) {
     console.error("[ai] Gemini failed", geminiError.message);
     try {
       const text = await callGroq(prompt, maxTokens);
+      console.log("[ai] groq raw response:", text.slice(0, 300));
       console.log("[ai] provider used: groq");
       return { data: text, error: null };
     } catch (groqError) {
@@ -130,7 +131,7 @@ export function parseJSON(text) {
 
   try {
     return { data: JSON.parse(raw), error: null };
-  } catch (_) {}
+  } catch (_) { }
 
   const stripped = raw
     .replace(/^```(?:json)?\s*/i, "")
@@ -139,13 +140,13 @@ export function parseJSON(text) {
 
   try {
     return { data: JSON.parse(stripped), error: null };
-  } catch (_) {}
+  } catch (_) { }
 
   const match = raw.match(/\{[\s\S]*\}/);
   if (match) {
     try {
       return { data: JSON.parse(match[0]), error: null };
-    } catch (_) {}
+    } catch (_) { }
   }
 
   return {

@@ -1207,6 +1207,9 @@ IMPORTANT RULES:
 - Prefer official documentation and reputable platforms
 - Never invent fake URLs or fake resources
 - Resources must be searchable and real
+- Keep descriptions under 100 characters
+- Keep resource names short (platform name only, no extra text)
+- Be concise — output must fit within token limits
 - Do NOT say:
   "practice more"
   "read about X"
@@ -1635,10 +1638,10 @@ Deno.serve(async (req: Request) => {
       candidateLevel,
     );
     const trainingTokenBudget = Math.min(
-      2400,
+      6000,
       Math.max(
-        1800,
-        weakSkills.length * 220,
+        3000,
+        weakSkills.length * 400,
       ),
     );
 
