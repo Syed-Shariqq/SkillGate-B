@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAI, parseJSON } from "../_shared/ai.js";
+import { callAI, callAILarge, parseJSON } from "../_shared/ai.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -155,6 +155,10 @@ const TRUSTED_RESOURCE_PATTERNS = [
   "FreeCodeCamp",
   "JavaScript.info",
   "TypeScript Docs",
+  "typescriptlang.org",
+  "developer.mozilla.org",
+  "reactjs.org",
+  "nodejs.org",
 ];
 
 const SUMMARY_PROMPT_VERSION = "v1";
@@ -314,16 +318,9 @@ function isMeaningfulSummary(text: unknown): text is string {
 }
 
 function isTrustedResourceSuggestion(suggestion: string): boolean {
-  const normalizedSuggestion = suggestion.toLowerCase();
-  const trustedResourceMatch = TRUSTED_RESOURCE_PATTERNS.some(
-    (pattern: string) => normalizedSuggestion.includes(pattern.toLowerCase()),
-  );
+  const normalized = suggestion.toLowerCase();
 
-  if (!trustedResourceMatch) {
-    return false;
-  }
-
-  return ![
+  const hasUntrusted = [
     "my course",
     "secret course",
     "unknown bootcamp",
@@ -332,42 +329,75 @@ function isTrustedResourceSuggestion(suggestion: string): boolean {
     "ultimate masterclass",
     "guaranteed job",
     "fake",
-  ].some((pattern: string) => normalizedSuggestion.includes(pattern)) &&
-    !/https?:\/\//i.test(suggestion);
+  ].some((pattern: string) => normalized.includes(pattern));
+
+  if (hasUntrusted) return false;
+
+  const hasTrusted = [
+    "mdn",
+    "leetcode",
+    "roadmap.sh",
+    "react docs",
+    "react",
+    "postgresql",
+    "oracle",
+    "java",
+    "spring",
+    "freecodecamp",
+    "javascript.info",
+    "typescript",
+    "node",
+    "express",
+    "tailwind",
+    "css",
+    "html",
+    "github",
+    "npm",
+    "typescriptlang",
+    "developer.mozilla",
+    "reactjs.org",
+    "nodejs",
+  ].some((pattern: string) => normalized.includes(pattern));
+
+  return hasTrusted;
 }
 
 function parseDurationMinutes(duration: string): number {
-  const match = duration.trim().match(/^(\d+)\s*(mins?|minutes?)$/i);
+  const normalized = duration.trim().toLowerCase();
 
-  return match ? safeNumber(match[1], 0) : 0;
+  // "45 mins", "45 min", "45 minutes"
+  const minsMatch = normalized.match(/^(\d+)\s*(mins?|minutes?)$/i);
+  if (minsMatch) return safeNumber(minsMatch[1], 0);
+
+  // "1 hour", "1 hr", "1.5 hours"
+  const hoursMatch = normalized.match(/^(\d+\.?\d*)\s*(hrs?|hours?)$/i);
+  if (hoursMatch) return Math.round(safeNumber(hoursMatch[1], 0) * 60);
+
+  // "1 hour 30 mins", "1hr 30min"
+  const combinedMatch = normalized.match(/^(\d+)\s*(hrs?|hours?)\s*(\d+)\s*(mins?|minutes?)$/i);
+  if (combinedMatch) return safeNumber(combinedMatch[1], 0) * 60 + safeNumber(combinedMatch[3], 0);
+
+  // just a number — assume minutes
+  const bareMatch = normalized.match(/^(\d+)$/);
+  if (bareMatch) return safeNumber(bareMatch[1], 0);
+
+  return 0;
 }
 
 function isMeasurableTrainingTask(task: TrainingTask): boolean {
   const combined = `${task.title} ${task.description}`.toLowerCase();
 
-  if (
-    [
-      "practice ",
-      "learn ",
-      "read about",
-      "improve fundamentals",
-      "understand better",
-    ].some((phrase: string) => combined.includes(phrase))
-  ) {
-    return false;
-  }
+  const hasGenericPhrase = [
+    "practice more",
+    "read about",
+    "improve fundamentals",
+    "understand better",
+    "learn more",
+  ].some((phrase: string) => combined.includes(phrase));
 
-  return [
-    "solve",
-    "build",
-    "implement",
-    "create",
-    "complete",
-    "write",
-    "add",
-    "debug",
-    "test",
-  ].some((verb: string) => combined.includes(verb));
+  if (hasGenericPhrase) return false;
+
+  return combined.length > 20;
 }
 
 function hasFlag(
@@ -953,24 +983,33 @@ function normalizeTrainingPlan(
             const duration = typeof taskItem.duration === "string"
               ? taskItem.duration.trim()
               : "";
-            const resource = typeof taskItem.resource === "string"
+            const rawResource = typeof taskItem.resource === "string"
               ? taskItem.resource.trim()
               : "";
 
-            if (
-              !title ||
-              !description ||
-              !duration ||
-              !resource ||
-              !isTrustedResourceSuggestion(resource) ||
-              !isMeasurableTrainingTask({
-                title,
-                description,
-                duration,
-                resource,
-              }) ||
-              parseDurationMinutes(duration) <= 0
-            ) {
+            if (!title || !description || !duration) {
+              console.log(`[training-debug] day ${day} task rejected: missing field`, { title: !!title, description: !!description, duration: !!duration, rawResource: !!rawResource });
+              return null;
+            }
+
+            const resolvedRawResource = (rawResource || "roadmap.sh").replace(/https?:\/\/\S+/gi, "").trim() || "roadmap.sh";
+
+            // Auto-prefix platform name if AI returned section name only
+            const matchedPattern = TRUSTED_RESOURCE_PATTERNS.find(
+              (p: string) => resolvedRawResource.toLowerCase().includes(p.toLowerCase()),
+            );
+            const resource = matchedPattern && !TRUSTED_RESOURCE_PATTERNS.some(
+              (p: string) => resolvedRawResource.startsWith(p),
+            )
+              ? `${matchedPattern}: ${resolvedRawResource}`
+              : resolvedRawResource;
+
+            const trustedCheck = isTrustedResourceSuggestion(resource);
+            const measurableCheck = isMeasurableTrainingTask({ title, description, duration, resource });
+            const durationCheck = parseDurationMinutes(duration) > 0;
+
+            if (!trustedCheck || !measurableCheck || !durationCheck) {
+              console.log(`[training-debug] day ${day} task rejected:`, title, "| resource:", resource, "| trusted:", trustedCheck, "| measurable:", measurableCheck, "| duration:", durationCheck, parseDurationMinutes(duration));
               return null;
             }
 
@@ -979,6 +1018,9 @@ function normalizeTrainingPlan(
           .filter((task): task is TrainingTask => task !== null)
           .slice(0, 3)
         : [];
+
+      console.log(`[training-debug] day ${day} tasks passed: ${tasks.length}`);
+      tasks.forEach((t, i) => console.log(`[training-debug] day ${day} task ${i + 1}:`, t.title, "|", t.resource, "| mins:", parseDurationMinutes(t.duration)));
 
       if (tasks.length === 0) {
         return null;
@@ -990,7 +1032,10 @@ function normalizeTrainingPlan(
         0,
       );
 
-      if (totalMinutes > 120) {
+      console.log(`[training-debug] day ${day} totalMinutes: ${totalMinutes}`);
+
+      if (totalMinutes > 150) {
+        console.log(`[training-debug] day ${day} rejected: totalMinutes ${totalMinutes} > 150`);
         return null;
       }
 
@@ -1012,6 +1057,7 @@ function normalizeTrainingPlan(
       ),
   ) === true;
 
+  console.log("[generate-summary] hasSevenDays", hasSevenDays, "hasDaySevenProject", hasDaySevenProject, "normalizedDays", normalizedDays.length);
   return hasSevenDays && hasDaySevenProject ? normalizedDays : fallback;
 }
 
@@ -1207,9 +1253,9 @@ IMPORTANT RULES:
 - Prefer official documentation and reputable platforms
 - Never invent fake URLs or fake resources
 - Resources must be searchable and real
-- Keep descriptions under 100 characters
-- Keep resource names short (platform name only, no extra text)
-- Be concise — output must fit within token limits
+- Every task MUST include a non-empty "resource" field
+- Never leave "resource" as null, empty string, or missing
+- If no specific resource exists, use "roadmap.sh"
 - Do NOT say:
   "practice more"
   "read about X"
@@ -1323,6 +1369,7 @@ async function sleep(ms: number): Promise<void> {
 async function callAISafely(
   prompt: string,
   tokens: number,
+  large = false,
 ): Promise<SafeAIResult> {
   const maxAttempts = 3;
   let lastError: unknown = null;
@@ -1330,7 +1377,7 @@ async function callAISafely(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const aiResult = await callAI(prompt, tokens);
+      const aiResult = large ? await callAILarge(prompt, tokens) : await callAI(prompt, tokens);
       lastModel = getAIModelName(aiResult);
 
       if (aiResult.error || !aiResult.data) {
@@ -1648,7 +1695,7 @@ Deno.serve(async (req: Request) => {
     const [aiResult, executiveResult, trainingResult] = await Promise.all([
       callAISafely(prompt, estimatedTokenBudget),
       callAISafely(executivePrompt, executiveTokenBudget),
-      callAISafely(trainingPrompt, trainingTokenBudget),
+      callAISafely(trainingPrompt, trainingTokenBudget, true),
     ]);
 
     const summaryModel = [aiResult.model, executiveResult.model, trainingResult.model]
@@ -1731,6 +1778,10 @@ Deno.serve(async (req: Request) => {
       );
       console.log("[generate-summary] fallback-used");
     } else {
+      console.log("[generate-summary] raw training plan", JSON.stringify(trainingResult.data).slice(0, 500));
+      console.log("[generate-summary] normalized days count",
+        Array.isArray(trainingResult.data?.plan) ? trainingResult.data.plan.length : "not array"
+      );
       const normalizedTrainingPlan = normalizeTrainingPlan(
         trainingResult.data,
         trainingPlan,

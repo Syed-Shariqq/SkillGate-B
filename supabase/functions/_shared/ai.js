@@ -104,6 +104,36 @@ export async function callGroq(prompt, maxTokens) {
   return getGroqText(await response.json());
 }
 
+export async function callGroqLarge(prompt, maxTokens) {
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+
+  if (!apiKey) {
+    throw new Error("Missing GROQ_API_KEY");
+  }
+
+  const response = await fetch(GROQ_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: maxTokens,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    console.error("[ai] GROQ large HTTP error", response.status, errBody);
+    throw new Error(`GROQ large request failed: ${response.status}`);
+  }
+
+  return getGroqText(await response.json());
+}
+
 export async function callAI(prompt, maxTokens) {
   try {
     const text = await callGemini(prompt, maxTokens);
@@ -121,6 +151,28 @@ export async function callAI(prompt, maxTokens) {
       return {
         data: null,
         error: { type: "AI_UNAVAILABLE", message: "All providers failed" },
+      };
+    }
+  }
+}
+
+export async function callAILarge(prompt, maxTokens) {
+  try {
+    const text = await callGemini(prompt, maxTokens);
+    console.log("[ai] large provider used: gemini");
+    return { data: text, error: null, model: "gemini" };
+  } catch (geminiError) {
+    console.error("[ai] Gemini failed", geminiError.message);
+    try {
+      const text = await callGroqLarge(prompt, maxTokens);
+      console.log("[ai] large provider used: groq-8b");
+      return { data: text, error: null, model: "groq-8b-instant" };
+    } catch (groqError) {
+      console.error("[ai] GROQ large failed", groqError.message);
+      return {
+        data: null,
+        error: { type: "AI_UNAVAILABLE", message: "All providers failed" },
+        model: "unknown",
       };
     }
   }
