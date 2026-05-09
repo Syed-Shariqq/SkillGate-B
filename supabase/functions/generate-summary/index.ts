@@ -29,6 +29,7 @@ type Result = {
   feedback_summary: string | null;
   improvement_resources: unknown;
   summary_generated: boolean;
+  hiring_rationale: string | null;
 };
 
 type Question = {
@@ -883,8 +884,8 @@ function normalizeGeneratedSummary(
       weakSkills.length === 0 && percentage >= 80
         ? []
         : resources.length > 0
-        ? resources
-        : fallback.improvementResources,
+          ? resources
+          : fallback.improvementResources,
   };
 }
 
@@ -1416,7 +1417,7 @@ Deno.serve(async (req: Request) => {
     const resultQuery = supabase
       .from("results")
       .select(
-        "id, assessment_id, overall_score, confidence_score, confidence_label, skill_scores, total_points_earned, total_points_possible, time_taken_seconds, feedback_summary, improvement_resources, summary_generated",
+        "id, assessment_id, overall_score, confidence_score, confidence_label, skill_scores, total_points_earned, total_points_possible, time_taken_seconds, feedback_summary, improvement_resources, summary_generated, hiring_rationale",
       );
     const { data: result, error: resultError } = resultId
       ? await resultQuery.eq("id", resultId).maybeSingle<Result>()
@@ -1541,7 +1542,7 @@ Deno.serve(async (req: Request) => {
     const percentage = roundToOne(safeNumber(result.overall_score));
     const totalScore = roundToOne(safeNumber(result.total_points_earned));
     const maxScore = roundToOne(safeNumber(result.total_points_possible));
-    const timeTaken = roundToOne(safeNumber(result.time_taken_seconds) / 60);
+    const timeTaken = Math.ceil(safeNumber(result.time_taken_seconds) / 60);
     const confidenceScore = roundToOne(safeNumber(result.confidence_score));
     const confidenceLabel =
       typeof result.confidence_label === "string" &&
@@ -1585,8 +1586,6 @@ Deno.serve(async (req: Request) => {
       weakSkills,
       missedConceptsBySkill,
     );
-    let summaryModel = "unknown";
-
     const prompt = buildSummaryPrompt(
       job.title,
       totalScore,
@@ -1606,8 +1605,51 @@ Deno.serve(async (req: Request) => {
         compressedSignals.length * 120,
       ),
     );
-    const aiResult = await callAISafely(prompt, estimatedTokenBudget);
-    summaryModel = aiResult.model;
+
+    const executivePrompt = buildExecutiveSummaryPrompt(
+      job.title,
+      totalScore,
+      maxScore,
+      percentage,
+      passingThreshold,
+      timeTaken,
+      timeLimit,
+      confidenceScore,
+      confidenceLabel,
+      suspiciousCount,
+      skillScores,
+      compressedSignals,
+    );
+    const executiveTokenBudget = Math.min(
+      2400,
+      Math.max(
+        1200,
+        compressedSignals.length * 140,
+      ),
+    );
+
+    const trainingPrompt = buildTrainingPlanPrompt(
+      job.title,
+      weakSkills,
+      missedConcepts,
+      candidateLevel,
+    );
+    const trainingTokenBudget = Math.min(
+      2400,
+      Math.max(
+        1800,
+        weakSkills.length * 220,
+      ),
+    );
+
+    const [aiResult, executiveResult, trainingResult] = await Promise.all([
+      callAISafely(prompt, estimatedTokenBudget),
+      callAISafely(executivePrompt, executiveTokenBudget),
+      callAISafely(trainingPrompt, trainingTokenBudget),
+    ]);
+
+    const summaryModel = [aiResult.model, executiveResult.model, trainingResult.model]
+      .find(m => m !== "unknown") ?? "unknown";
 
     if (aiResult.error || !aiResult.data) {
       console.error(
@@ -1639,36 +1681,6 @@ Deno.serve(async (req: Request) => {
           console.log("[generate-summary] fallback-used");
         }
       }
-    }
-
-    const executivePrompt = buildExecutiveSummaryPrompt(
-      job.title,
-      totalScore,
-      maxScore,
-      percentage,
-      passingThreshold,
-      timeTaken,
-      timeLimit,
-      confidenceScore,
-      confidenceLabel,
-      suspiciousCount,
-      skillScores,
-      compressedSignals,
-    );
-    const executiveTokenBudget = Math.min(
-      2400,
-      Math.max(
-        1200,
-        compressedSignals.length * 140,
-      ),
-    );
-    const executiveResult = await callAISafely(
-      executivePrompt,
-      executiveTokenBudget,
-    );
-
-    if (summaryModel === "unknown") {
-      summaryModel = executiveResult.model;
     }
 
     if (executiveResult.error || !executiveResult.data) {
@@ -1703,28 +1715,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const trainingPrompt = buildTrainingPlanPrompt(
-      job.title,
-      weakSkills,
-      missedConcepts,
-      candidateLevel,
-    );
-    const trainingTokenBudget = Math.min(
-      2400,
-      Math.max(
-        1200,
-        Math.max(weakSkills.length, 1) * 220,
-      ),
-    );
-    const trainingResult = await callAISafely(
-      trainingPrompt,
-      trainingTokenBudget,
-    );
-
-    if (summaryModel === "unknown") {
-      summaryModel = trainingResult.model;
-    }
-
     if (trainingResult.error || !trainingResult.data) {
       console.error(
         "[generate-summary][ai]",
@@ -1743,6 +1733,7 @@ Deno.serve(async (req: Request) => {
         trainingPlan,
       );
 
+      // normalizeTrainingPlan returns the fallback array by reference when validation fails, so reference equality is intentional here.
       if (normalizedTrainingPlan === trainingPlan) {
         console.error(
           "[generate-summary][validation]",
@@ -1763,6 +1754,7 @@ Deno.serve(async (req: Request) => {
         strengths: executiveSummary.strengths,
         weaknesses: executiveSummary.weaknesses,
         hiring_signal: executiveSummary.hiringSignal,
+        hiring_rationale: executiveSummary.hiringRationale,
         training_plan: trainingPlan,
         summary_generated: true,
         summary_model: summaryModel,
