@@ -988,7 +988,6 @@ function normalizeTrainingPlan(
               : "";
 
             if (!title || !description || !duration) {
-              console.log(`[training-debug] day ${day} task rejected: missing field`, { title: !!title, description: !!description, duration: !!duration, rawResource: !!rawResource });
               return null;
             }
 
@@ -1009,7 +1008,6 @@ function normalizeTrainingPlan(
             const durationCheck = parseDurationMinutes(duration) > 0;
 
             if (!trustedCheck || !measurableCheck || !durationCheck) {
-              console.log(`[training-debug] day ${day} task rejected:`, title, "| resource:", resource, "| trusted:", trustedCheck, "| measurable:", measurableCheck, "| duration:", durationCheck, parseDurationMinutes(duration));
               return null;
             }
 
@@ -1018,9 +1016,6 @@ function normalizeTrainingPlan(
           .filter((task): task is TrainingTask => task !== null)
           .slice(0, 3)
         : [];
-
-      console.log(`[training-debug] day ${day} tasks passed: ${tasks.length}`);
-      tasks.forEach((t, i) => console.log(`[training-debug] day ${day} task ${i + 1}:`, t.title, "|", t.resource, "| mins:", parseDurationMinutes(t.duration)));
 
       if (tasks.length === 0) {
         return null;
@@ -1032,10 +1027,7 @@ function normalizeTrainingPlan(
         0,
       );
 
-      console.log(`[training-debug] day ${day} totalMinutes: ${totalMinutes}`);
-
       if (totalMinutes > 150) {
-        console.log(`[training-debug] day ${day} rejected: totalMinutes ${totalMinutes} > 150`);
         return null;
       }
 
