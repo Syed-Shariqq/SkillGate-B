@@ -161,6 +161,17 @@ const TRUSTED_RESOURCE_PATTERNS = [
   "nodejs.org",
 ];
 
+const UNTRUSTED_RESOURCE_PATTERNS = [
+  "my course",
+  "secret course",
+  "unknown bootcamp",
+  "random youtube",
+  "viral tutorial",
+  "ultimate masterclass",
+  "guaranteed job",
+  "fake",
+];
+
 const SUMMARY_PROMPT_VERSION = "v1";
 
 // Validation Helpers
@@ -206,9 +217,13 @@ function normalizeStringArray(value: unknown): string[] {
     .filter((item: string) => item.length > 0);
 }
 
+function normalizeSkillNameForMatch(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function normalizeSkillScores(value: unknown): SkillScore[] {
-  if (Array.isArray(value)) {
-    return value
+  const scores = Array.isArray(value)
+    ? value
       .filter(isRecord)
       .map((item: JsonRecord): SkillScore | null => {
         const skill = typeof item.skill === "string" ? item.skill.trim() : "";
@@ -216,24 +231,36 @@ function normalizeSkillScores(value: unknown): SkillScore[] {
 
         return skill && Number.isFinite(score) ? { skill, score } : null;
       })
-      .filter((item): item is SkillScore => item !== null);
+      .filter((item): item is SkillScore => item !== null)
+    : isRecord(value)
+      ? Object.entries(value)
+        .map(([skill, rawValue]: [string, unknown]): SkillScore | null => {
+          if (!isRecord(rawValue)) {
+            return null;
+          }
+
+          const score = safeNumber(rawValue.score, NaN);
+
+          return Number.isFinite(score) ? { skill, score } : null;
+        })
+        .filter((item): item is SkillScore => item !== null)
+      : [];
+
+  const maxScore = scores.reduce(
+    (max: number, skillScore: SkillScore) => Math.max(max, skillScore.score),
+    0,
+  );
+
+  if (scores.length > 0 && maxScore <= 1.0) {
+    console.warn("[generate-summary][validation]", "Normalizing skill score scale from 0-1 to 0-100");
+    return scores.map((skillScore: SkillScore) => ({
+      ...skillScore,
+      score: skillScore.score * 100,
+    }));
   }
+  // fix: BUG 5 — normalize 0-1 skill score scale to 0-100.
 
-  if (!isRecord(value)) {
-    return [];
-  }
-
-  return Object.entries(value)
-    .map(([skill, rawValue]: [string, unknown]): SkillScore | null => {
-      if (!isRecord(rawValue)) {
-        return null;
-      }
-
-      const score = safeNumber(rawValue.score, NaN);
-
-      return Number.isFinite(score) ? { skill, score } : null;
-    })
-    .filter((item): item is SkillScore => item !== null);
+  return scores;
 }
 
 function isImprovementResourceType(
@@ -320,16 +347,9 @@ function isMeaningfulSummary(text: unknown): text is string {
 function isTrustedResourceSuggestion(suggestion: string): boolean {
   const normalized = suggestion.toLowerCase();
 
-  const hasUntrusted = [
-    "my course",
-    "secret course",
-    "unknown bootcamp",
-    "random youtube",
-    "viral tutorial",
-    "ultimate masterclass",
-    "guaranteed job",
-    "fake",
-  ].some((pattern: string) => normalized.includes(pattern));
+  const hasUntrusted = UNTRUSTED_RESOURCE_PATTERNS.some((pattern: string) =>
+    normalized.includes(pattern)
+  );
 
   if (hasUntrusted) return false;
 
@@ -361,6 +381,15 @@ function isTrustedResourceSuggestion(suggestion: string): boolean {
 
   return hasTrusted;
 }
+
+function isTrustedResourceForTraining(suggestion: string): boolean {
+  const normalized = suggestion.toLowerCase();
+
+  return !UNTRUSTED_RESOURCE_PATTERNS.some((pattern: string) =>
+    normalized.includes(pattern)
+  );
+}
+// fix: BUG 3 — training resources only block known untrusted patterns.
 
 function parseDurationMinutes(duration: string): number {
   const normalized = duration.trim().toLowerCase();
@@ -858,11 +887,20 @@ function normalizeGeneratedSummary(
   percentage: number,
   missedConceptsBySkill: Map<string, string[]>,
 ): GeneratedSummary {
-  const allowedSkills = new Set<string>([
+  const originalSkillByNormalized = new Map<string, string>();
+  for (const skill of [
     ...weakSkills,
     ...Array.from(missedConceptsBySkill.keys()),
-  ]);
+  ]) {
+    const normalizedSkill = normalizeSkillNameForMatch(skill);
+
+    if (normalizedSkill && !originalSkillByNormalized.has(normalizedSkill)) {
+      originalSkillByNormalized.set(normalizedSkill, skill.trim());
+    }
+  }
+  const allowedSkills = new Set<string>(originalSkillByNormalized.keys());
   const seenSkills = new Set<string>();
+  // fix: BUG 1 — normalize skill names before filtering generated resources.
   const resources = Array.isArray(rawSummary.improvementResources)
     ? rawSummary.improvementResources
       .filter(isRecord)
@@ -876,11 +914,14 @@ function normalizeGeneratedSummary(
         const suggestion = typeof resource.suggestion === "string"
           ? resource.suggestion.trim()
           : "";
+        const normalizedSkill = normalizeSkillNameForMatch(skill);
+        const originalSkill = originalSkillByNormalized.get(normalizedSkill) ??
+          skill;
 
         if (
           !skill ||
-          !allowedSkills.has(skill) ||
-          seenSkills.has(skill) ||
+          !allowedSkills.has(normalizedSkill) ||
+          seenSkills.has(normalizedSkill) ||
           !topic ||
           !suggestion ||
           !isImprovementResourceType(resource.type)
@@ -888,14 +929,14 @@ function normalizeGeneratedSummary(
           return null;
         }
 
-        seenSkills.add(skill);
+        seenSkills.add(normalizedSkill);
 
         if (!isTrustedResourceSuggestion(suggestion)) {
-          return fallbackResource(skill, topic);
+          return fallbackResource(originalSkill, topic);
         }
 
         return {
-          skill,
+          skill: originalSkill,
           topic,
           type: resource.type,
           suggestion,
@@ -953,10 +994,11 @@ function normalizeExecutiveSummary(
 function normalizeTrainingPlan(
   rawPlan: JsonRecord,
   fallback: TrainingPlanDay[],
-): TrainingPlanDay[] {
+): { plan: TrainingPlanDay[]; usedFallback: boolean } {
   if (!Array.isArray(rawPlan.plan)) {
-    return fallback;
+    return { plan: fallback, usedFallback: true };
   }
+  // fix: BUG 6 — return explicit fallback usage metadata.
 
   const normalizedDays = rawPlan.plan
     .filter(isRecord)
@@ -1003,7 +1045,7 @@ function normalizeTrainingPlan(
               ? `${matchedPattern}: ${resolvedRawResource}`
               : resolvedRawResource;
 
-            const trustedCheck = isTrustedResourceSuggestion(resource);
+            const trustedCheck = isTrustedResourceForTraining(resource);
             const measurableCheck = isMeasurableTrainingTask({ title, description, duration, resource });
             const durationCheck = parseDurationMinutes(duration) > 0;
 
@@ -1042,7 +1084,10 @@ function normalizeTrainingPlan(
     normalizedDays.every((day: TrainingPlanDay, index: number) =>
       day.day === index + 1
     );
-  const hasDaySevenProject = normalizedDays[6]?.tasks.some(
+  const daySeven = normalizedDays.find((day: TrainingPlanDay) =>
+    day.day === 7
+  );
+  const hasDaySevenProject = daySeven?.tasks.some(
     (task: TrainingTask) =>
       /project|build|challenge|implement/i.test(
         `${task.title} ${task.description}`,
@@ -1050,7 +1095,33 @@ function normalizeTrainingPlan(
   ) === true;
 
   console.log("[generate-summary] hasSevenDays", hasSevenDays, "hasDaySevenProject", hasDaySevenProject, "normalizedDays", normalizedDays.length);
-  return hasSevenDays && hasDaySevenProject ? normalizedDays : fallback;
+
+  const normalizedDaysByDay = new Map<number, TrainingPlanDay>();
+  for (const normalizedDay of normalizedDays) {
+    if (normalizedDay.day === 7 && !hasDaySevenProject) {
+      continue;
+    }
+
+    if (!normalizedDaysByDay.has(normalizedDay.day)) {
+      normalizedDaysByDay.set(normalizedDay.day, normalizedDay);
+    }
+  }
+
+  if (normalizedDaysByDay.size === 0) {
+    return { plan: fallback, usedFallback: true };
+  }
+
+  const plan = Array.from({ length: 7 }, (_value, index: number) => {
+    const day = index + 1;
+
+    return normalizedDaysByDay.get(day) ?? fallback[index];
+  });
+  // fix: BUG 2 — merge valid AI days with fallback days instead of discarding all.
+
+  return {
+    plan,
+    usedFallback: normalizedDaysByDay.size < 7,
+  };
 }
 
 // AI Prompt Helpers
@@ -1364,6 +1435,7 @@ async function callAISafely(
   large = false,
 ): Promise<SafeAIResult> {
   const maxAttempts = 3;
+  // fix: BUG 7 — use longer exponential backoff for AI quota retries.
   let lastError: unknown = null;
   let lastModel = "unknown";
 
@@ -1380,7 +1452,7 @@ async function callAISafely(
             attempt,
             reason: lastError,
           });
-          await sleep(2 ** (attempt - 1) * 500);
+          await sleep(2 ** (attempt - 1) * 5000);
           continue;
         }
 
@@ -1397,7 +1469,7 @@ async function callAISafely(
             attempt,
             reason: lastError,
           });
-          await sleep(2 ** (attempt - 1) * 500);
+          await sleep(2 ** (attempt - 1) * 5000);
           continue;
         }
 
@@ -1417,7 +1489,7 @@ async function callAISafely(
           attempt,
           reason: error instanceof Error ? error.message : String(error),
         });
-        await sleep(2 ** (attempt - 1) * 500);
+        await sleep(2 ** (attempt - 1) * 5000);
         continue;
       }
     }
@@ -1690,8 +1762,12 @@ Deno.serve(async (req: Request) => {
       callAISafely(trainingPrompt, trainingTokenBudget, true),
     ]);
 
-    const summaryModel = [aiResult.model, executiveResult.model, trainingResult.model]
-      .find(m => m !== "unknown") ?? "unknown";
+    const summaryModel = JSON.stringify({
+      summary: aiResult.model,
+      executive: executiveResult.model,
+      training: trainingResult.model,
+    });
+    // fix: BUG 4 — store model names for all AI calls.
 
     if (aiResult.error || !aiResult.data) {
       console.error(
@@ -1774,13 +1850,12 @@ Deno.serve(async (req: Request) => {
       console.log("[generate-summary] normalized days count",
         Array.isArray(trainingResult.data?.plan) ? trainingResult.data.plan.length : "not array"
       );
-      const normalizedTrainingPlan = normalizeTrainingPlan(
+      const { plan: normalizedTrainingPlan, usedFallback } = normalizeTrainingPlan(
         trainingResult.data,
         trainingPlan,
       );
 
-      // normalizeTrainingPlan returns the fallback array by reference when validation fails, so reference equality is intentional here.
-      if (normalizedTrainingPlan === trainingPlan) {
+      if (usedFallback) {
         console.error(
           "[generate-summary][validation]",
           "AI training plan failed validation",

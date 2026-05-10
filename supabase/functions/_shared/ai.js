@@ -183,7 +183,7 @@ export function parseJSON(text) {
 
   try {
     return { data: JSON.parse(raw), error: null };
-  } catch (_) { }
+  } catch (_) {}
 
   const stripped = raw
     .replace(/^```(?:json)?\s*/i, "")
@@ -192,13 +192,13 @@ export function parseJSON(text) {
 
   try {
     return { data: JSON.parse(stripped), error: null };
-  } catch (_) { }
+  } catch (_) {}
 
   const match = raw.match(/\{[\s\S]*\}/);
   if (match) {
     try {
       return { data: JSON.parse(match[0]), error: null };
-    } catch (_) { }
+    } catch (_) {}
   }
 
   return {
