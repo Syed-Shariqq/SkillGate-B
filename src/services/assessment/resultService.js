@@ -2,7 +2,7 @@ import { supabase } from '../../config/supabase'
 
 const PDF_STATUS_LABELS = {
   pending: 'Your report is being prepared',
-  generating: 'Your report is being prepared',
+  generating: 'Report generation is in progress',
   generated: 'Your report is ready',
   failed: 'Report generation failed. Retrying shortly.',
 }

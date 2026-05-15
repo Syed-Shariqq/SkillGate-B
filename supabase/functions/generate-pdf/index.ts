@@ -11,8 +11,6 @@ interface ResultRow {
   assessment_id: string;
   overall_score: number;
   passed: boolean;
-  confidence_score: number | null;
-  confidence_label: string | null;
   skill_scores: Record<string, unknown> | null;
   feedback_summary: string | null;
   improvement_resources: unknown[] | null;
@@ -23,8 +21,6 @@ interface ResultRow {
   pdf_storage_path: string | null;
   pdf_generated_at: string | null;
   pdf_error: string | null;
-  hiring_signal: string | null;
-  executive_summary: string | null;
 }
 
 interface CandidateRow {
@@ -67,6 +63,11 @@ const corsHeaders = {
 
 const PDFSHIFT_ENDPOINT = "https://api.pdfshift.io/v3/convert/pdf";
 const STORAGE_BUCKET = "reports";
+const MAX_LIST_ITEMS = 8;
+const MAX_TRAINING_ITEMS = 5;
+const MAX_SUMMARY_CHARS = 2000;
+const MAX_SKILL_ROWS = 20;
+const STALE_GENERATING_MS = 10 * 60 * 1000;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -99,6 +100,14 @@ function safeText(value: unknown, fallback = ""): string {
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
+function truncateText(value: string, maxLength = MAX_SUMMARY_CHARS): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -121,12 +130,17 @@ function isValidUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
-function normalizeTextItems(value: unknown, fallback: string): string[] {
+function normalizeTextItems(
+  value: unknown,
+  fallback: string,
+  maxItems = MAX_LIST_ITEMS,
+): string[] {
   if (!Array.isArray(value)) {
     return [fallback];
   }
 
   const items = value
+    .slice(0, maxItems)
     .map((item: unknown): string => {
       if (typeof item === "string") {
         return item.trim();
@@ -141,13 +155,13 @@ function normalizeTextItems(value: unknown, fallback: string): string[] {
           safeText(item.title),
         ].filter((part: string) => part.length > 0);
 
-        return parts.join(" - ");
+        return truncateText(parts.join(" - "), MAX_SUMMARY_CHARS);
       }
 
       return "";
     })
     .filter((item: string) => item.length > 0)
-    .slice(0, 6);
+    .map((item: string) => truncateText(item, MAX_SUMMARY_CHARS));
 
   return items.length > 0 ? items : [fallback];
 }
@@ -239,15 +253,20 @@ async function acquireGenerationLock(
   supabase: SupabaseClient,
   payload: RequestPayload,
 ): Promise<boolean> {
+  const now = new Date().toISOString();
+  const staleCutoff = new Date(Date.now() - STALE_GENERATING_MS).toISOString();
   const { data, error } = await supabase
     .from("results")
     .update({
       pdf_status: "generating",
       pdf_error: null,
-      updated_at: new Date().toISOString(),
+      pdf_generation_started_at: now,
+      updated_at: now,
     })
     .eq("id", payload.resultId)
-    .or("pdf_status.is.null,pdf_status.in.(pending,failed)")
+    .or(
+      `pdf_status.is.null,pdf_status.in.(pending,failed),and(pdf_status.eq.generating,pdf_generation_started_at.lt.${staleCutoff})`,
+    )
     .select("id")
     .maybeSingle<{ id: string }>();
 
@@ -283,8 +302,6 @@ async function fetchData(
         "assessment_id",
         "overall_score",
         "passed",
-        "confidence_score",
-        "confidence_label",
         "skill_scores",
         "feedback_summary",
         "improvement_resources",
@@ -295,8 +312,6 @@ async function fetchData(
         "pdf_storage_path",
         "pdf_generated_at",
         "pdf_error",
-        "hiring_signal",
-        "executive_summary",
         "time_taken_seconds",
       ].join(","),
     )
@@ -369,7 +384,17 @@ async function fetchData(
 }
 
 function buildSkillRows(skillScores: unknown): string {
-  const entries = isRecord(skillScores) ? Object.entries(skillScores) : [];
+  const entries: Array<[string, unknown]> = [];
+
+  if (isRecord(skillScores)) {
+    for (const entry of Object.entries(skillScores)) {
+      entries.push(entry);
+
+      if (entries.length >= MAX_SKILL_ROWS) {
+        break;
+      }
+    }
+  }
 
   if (entries.length === 0) {
     return `<tr><td colspan="4" class="empty">No skill breakdown available.</td></tr>`;
@@ -409,7 +434,8 @@ function buildTrainingPlanTeaser(value: unknown): string {
   const teaserItems = normalizeTextItems(
     value,
     "A focused training plan will appear here as more assessment data becomes available.",
-  ).slice(0, 4);
+    MAX_TRAINING_ITEMS,
+  );
 
   return `<section class="section highlight">
     <div>
@@ -434,30 +460,28 @@ function buildHtmlReport(data: FetchedData): string {
   const companyName = safeText(data.job.company_name, "SkillGate");
   const overallScore = toPercent(data.result.overall_score);
   const threshold = toPercent(data.job.min_score_threshold);
-  const confidenceScore = toPercent(data.result.confidence_score);
-  const confidenceLabel = safeText(data.result.confidence_label, "Not available");
-  const hiringSignal = safeText(data.result.hiring_signal, "Not available");
-  const feedback = safeText(
-    data.result.feedback_summary,
-    "Thank you for completing the assessment. Your results have been recorded.",
-  );
-  const executiveSummary = safeText(
-    data.result.executive_summary,
-    "This report summarizes the candidate's assessment performance and skill coverage.",
+  const feedback = truncateText(
+    safeText(
+      data.result.feedback_summary,
+      "Thank you for completing the assessment. Your results have been recorded.",
+    ),
   );
   const resultLabel = data.result.passed ? "Passed" : "Completed";
   const statusClass = data.result.passed ? "pass" : "review";
   const strengths = normalizeTextItems(
     data.result.strengths,
     "No specific strengths were identified in the generated summary.",
+    MAX_LIST_ITEMS,
   );
   const weaknesses = normalizeTextItems(
     data.result.weaknesses,
     "No specific improvement areas were identified in the generated summary.",
+    MAX_LIST_ITEMS,
   );
   const resources = normalizeTextItems(
     data.result.improvement_resources,
     "Review the skills with the lowest scores and practice with targeted exercises.",
+    MAX_LIST_ITEMS,
   );
 
   return `<!doctype html>
@@ -484,14 +508,23 @@ function buildHtmlReport(data: FetchedData): string {
         margin: 0 auto;
       }
       .header {
-        display: table;
         width: 100%;
         border-bottom: 1px solid #E2E8F0;
         padding: 0 0 18px 0;
       }
-      .brand, .meta {
-        display: table-cell;
+      .header-table {
+        width: 100%;
+        border: 0;
+        border-collapse: collapse;
+        border-radius: 0;
+      }
+      .header-table td {
+        padding: 0;
+        border: 0;
         vertical-align: top;
+      }
+      .header-table .meta-cell {
+        text-align: right;
       }
       .brand-name {
         font-size: 25px;
@@ -506,7 +539,6 @@ function buildHtmlReport(data: FetchedData): string {
         font-size: 12px;
       }
       .meta {
-        text-align: right;
         color: #475569;
         font-family: 'DM Mono', monospace;
         font-size: 11px;
@@ -529,20 +561,24 @@ function buildHtmlReport(data: FetchedData): string {
         color: #475569;
         font-size: 14px;
       }
-      .metrics {
-        display: table;
+      .metrics-table {
         width: 100%;
         margin-top: 22px;
         table-layout: fixed;
-      }
-      .metric {
-        display: table-cell;
-        padding: 14px;
+        border-collapse: separate;
+        border-spacing: 0;
         border: 1px solid #E2E8F0;
-        background: #FFFFFF;
+        border-radius: 8px;
+        overflow: hidden;
       }
-      .metric:first-child { border-radius: 8px 0 0 8px; }
-      .metric:last-child { border-radius: 0 8px 8px 0; }
+      .metrics-table td {
+        padding: 14px;
+        border-right: 1px solid #E2E8F0;
+        border-bottom: 0;
+        background: #FFFFFF;
+        width: 25%;
+      }
+      .metrics-table td:last-child { border-right: 0; }
       .metric-label {
         color: #475569;
         font-size: 10px;
@@ -668,37 +704,45 @@ function buildHtmlReport(data: FetchedData): string {
   <body>
     <main class="page">
       <header class="header">
-        <div class="brand">
-          <div class="brand-name">Skill<span>Gate</span></div>
-          <div class="subtitle">AI-powered hiring assessment report</div>
-        </div>
-        <div class="meta">
-          <div>Assessment: ${escapeHtml(data.result.assessment_id)}</div>
-          <div>Submitted: ${escapeHtml(formatDate(data.assessment.submitted_at))}</div>
-        </div>
+        <table class="header-table" role="presentation" cellspacing="0" cellpadding="0">
+          <tr>
+            <td>
+              <div class="brand-name">Skill<span>Gate</span></div>
+              <div class="subtitle">AI-powered hiring assessment report</div>
+            </td>
+            <td class="meta-cell">
+              <div class="meta">
+                <div>Assessment: ${escapeHtml(data.result.assessment_id)}</div>
+                <div>Submitted: ${escapeHtml(formatDate(data.assessment.submitted_at))}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
       </header>
 
       <section class="hero">
         <h1>${escapeHtml(candidateName)} - ${escapeHtml(jobTitle)}</h1>
         <p>${escapeHtml(companyName)} candidate assessment report with score breakdown, feedback, and recommended next steps.</p>
-        <div class="metrics">
-          <div class="metric">
-            <div class="metric-label">Overall Score</div>
-            <div class="metric-value ${statusClass}">${overallScore}%</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Result</div>
-            <div class="metric-value ${statusClass}">${escapeHtml(resultLabel)}</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Threshold</div>
-            <div class="metric-value">${threshold}%</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Time</div>
-            <div class="metric-value">${escapeHtml(formatDuration(data.assessment.time_taken_seconds))}</div>
-          </div>
-        </div>
+        <table class="metrics-table" role="presentation" cellspacing="0" cellpadding="0">
+          <tr>
+            <td>
+              <div class="metric-label">Overall Score</div>
+              <div class="metric-value ${statusClass}">${overallScore}%</div>
+            </td>
+            <td>
+              <div class="metric-label">Result</div>
+              <div class="metric-value ${statusClass}">${escapeHtml(resultLabel)}</div>
+            </td>
+            <td>
+              <div class="metric-label">Threshold</div>
+              <div class="metric-value">${threshold}%</div>
+            </td>
+            <td>
+              <div class="metric-label">Time Taken</div>
+              <div class="metric-value">${escapeHtml(formatDuration(data.assessment.time_taken_seconds))}</div>
+            </td>
+          </tr>
+        </table>
       </section>
 
       <section class="section">
@@ -722,8 +766,6 @@ function buildHtmlReport(data: FetchedData): string {
         <h2>Feedback Summary</h2>
         <div class="summary">
           <p>${escapeHtml(feedback)}</p>
-          <p><strong>Recruiter summary:</strong> ${escapeHtml(executiveSummary)}</p>
-          <p><strong>Hiring signal:</strong> ${escapeHtml(hiringSignal)} &nbsp; <strong>Confidence:</strong> ${confidenceScore}% (${escapeHtml(confidenceLabel)})</p>
         </div>
       </section>
 
@@ -742,6 +784,7 @@ function buildHtmlReport(data: FetchedData): string {
 
 async function generatePdf(html: string): Promise<Uint8Array> {
   const pdfshiftApiKey = Deno.env.get("PDFSHIFT_API_KEY");
+  console.log("[debug] key prefix:", pdfshiftApiKey?.slice(0, 10));
   if (!pdfshiftApiKey) {
     throw new Error("PDFSHIFT_API_KEY is not configured");
   }
@@ -759,7 +802,7 @@ async function generatePdf(html: string): Promise<Uint8Array> {
     const response = await fetch(PDFSHIFT_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Basic ${btoa(`${pdfshiftApiKey}:`)}`,
+        "X-API-Key": pdfshiftApiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -780,8 +823,7 @@ async function generatePdf(html: string): Promise<Uint8Array> {
     if (!response.ok) {
       const responseText = await response.text();
       throw new Error(
-        responseText ||
-          `PDFShift returned HTTP ${response.status}`,
+        responseText || `PDFShift returned HTTP ${response.status}`,
       );
     }
 
@@ -806,7 +848,7 @@ async function uploadPdf(
   data: FetchedData,
   pdfBytes: Uint8Array,
 ): Promise<string> {
-  const storagePath = `${data.assessment.candidate_id}/${data.result.assessment_id}.pdf`;
+  const storagePath = `${data.assessment.candidate_id}/${crypto.randomUUID()}.pdf`;
 
   logStep("storage", "uploading PDF", {
     resultId: data.result.id,
@@ -841,6 +883,7 @@ async function markPdfGenerated(
       pdf_storage_path: storagePath,
       pdf_generated_at: new Date().toISOString(),
       pdf_error: null,
+      pdf_generation_started_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", resultId);
@@ -862,6 +905,7 @@ async function markPdfFailed(
     .update({
       pdf_status: "failed",
       pdf_error: message,
+      pdf_generation_started_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", resultId);
@@ -885,6 +929,10 @@ serve(async (req: Request) => {
   let supabase: SupabaseClient | null = null;
   let payload: RequestPayload | null = null;
   let lockAcquired = false;
+  const totalStart = performance.now();
+  let htmlMs = 0;
+  let pdfMs = 0;
+  let uploadMs = 0;
 
   try {
     payload = await validateRequest(req);
@@ -921,9 +969,17 @@ serve(async (req: Request) => {
     }
 
     const data = await fetchData(supabase, payload);
+    const htmlStart = performance.now();
     const html = buildHtmlReport(data);
+    htmlMs = performance.now() - htmlStart;
+
+    const pdfStart = performance.now();
     const pdf = await generatePdf(html);
+    pdfMs = performance.now() - pdfStart;
+
+    const uploadStart = performance.now();
     const storagePath = await uploadPdf(supabase, data, pdf);
+    uploadMs = performance.now() - uploadStart;
 
     await markPdfGenerated(supabase, payload.resultId, storagePath);
 
@@ -934,10 +990,20 @@ serve(async (req: Request) => {
       storagePath,
     });
 
-    return jsonResponse({
-      status: "generated",
-      storagePath,
-    }, 200);
+    logStep("metrics", "PDF generation timings", {
+      htmlMs: Math.round(htmlMs),
+      pdfMs: Math.round(pdfMs),
+      uploadMs: Math.round(uploadMs),
+      totalMs: Math.round(performance.now() - totalStart),
+    });
+
+    return jsonResponse(
+      {
+        status: "generated",
+        storagePath,
+      },
+      200,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[generate-pdf][error]", message);
@@ -945,6 +1011,13 @@ serve(async (req: Request) => {
     if (supabase && payload?.resultId && lockAcquired) {
       await markPdfFailed(supabase, payload.resultId, error);
     }
+
+    logStep("metrics", "PDF generation timings", {
+      htmlMs: Math.round(htmlMs),
+      pdfMs: Math.round(pdfMs),
+      uploadMs: Math.round(uploadMs),
+      totalMs: Math.round(performance.now() - totalStart),
+    });
 
     const isValidationError =
       message.includes("valid UUID") ||

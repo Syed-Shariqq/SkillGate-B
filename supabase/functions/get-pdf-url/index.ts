@@ -4,6 +4,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 type SupabaseClient = ReturnType<typeof createClient>;
 type JsonRecord = Record<string, unknown>;
 
+class HttpError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -74,6 +83,36 @@ function createSupabaseClient(): SupabaseClient {
   });
 }
 
+function createAuthenticatedClient(req: Request): SupabaseClient {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const authorization = req.headers.get("Authorization");
+
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL is not configured");
+  }
+
+  if (!anonKey) {
+    throw new Error("SUPABASE_ANON_KEY is not configured");
+  }
+
+  if (!authorization) {
+    throw new HttpError("Authentication required", 401);
+  }
+
+  return createClient(supabaseUrl, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        Authorization: authorization,
+      },
+    },
+  });
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -85,12 +124,21 @@ serve(async (req: Request) => {
   try {
     const payload = await validateRequest(req);
     const supabase = createSupabaseClient();
+    const authenticatedSupabase = createAuthenticatedClient(req);
+
+    const { data: authData, error: authError } =
+      await authenticatedSupabase.auth.getUser();
+
+    if (authError || !authData.user) {
+      throw new HttpError("Authentication required", 401);
+    }
 
     const { data: result, error: resultError } = await supabase
       .from("results")
-      .select("pdf_status,pdf_storage_path")
+      .select("assessment_id,pdf_status,pdf_storage_path")
       .eq("id", payload.resultId)
       .maybeSingle<{
+        assessment_id: string;
         pdf_status: string | null;
         pdf_storage_path: string | null;
       }>();
@@ -101,6 +149,47 @@ serve(async (req: Request) => {
 
     if (!result) {
       return jsonResponse({ error: "Result not found" }, 404);
+    }
+
+    const { data: assessment, error: assessmentError } = await supabase
+      .from("assessments")
+      .select("candidate_id,recruiter_id,job_id")
+      .eq("id", result.assessment_id)
+      .maybeSingle<{
+        candidate_id: string | null;
+        recruiter_id: string | null;
+        job_id: string | null;
+      }>();
+
+    if (assessmentError) {
+      throw new Error(assessmentError.message);
+    }
+
+    if (!assessment) {
+      return jsonResponse({ error: "Assessment not found" }, 404);
+    }
+
+    const userId = authData.user.id;
+    const ownsCandidate = assessment.candidate_id === userId;
+    const ownsRecruiterAssessment = assessment.recruiter_id === userId;
+    let ownsRecruiterJob = false;
+
+    if (!ownsRecruiterAssessment && assessment.job_id) {
+      const { data: job, error: jobError } = await supabase
+        .from("jobs")
+        .select("recruiter_id")
+        .eq("id", assessment.job_id)
+        .maybeSingle<{ recruiter_id: string | null }>();
+
+      if (jobError) {
+        throw new Error(jobError.message);
+      }
+
+      ownsRecruiterJob = job?.recruiter_id === userId;
+    }
+
+    if (!ownsCandidate && !ownsRecruiterAssessment && !ownsRecruiterJob) {
+      throw new HttpError("Forbidden", 403);
     }
 
     const status = result.pdf_status ?? "pending";
@@ -135,6 +224,10 @@ serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[get-pdf-url][error]", message);
+
+    if (error instanceof HttpError) {
+      return jsonResponse({ error: message }, error.status);
+    }
 
     const isValidationError =
       message.includes("valid UUID") ||

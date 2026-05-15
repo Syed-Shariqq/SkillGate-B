@@ -15,6 +15,13 @@ const STATUS_STYLES = {
   failed: 'border-error/30 bg-error/10 text-error',
 }
 
+const STATUS_DETAILS = {
+  pending: 'Your report is being prepared. Check again in a moment.',
+  generating: 'We are formatting your assessment report now. This usually finishes shortly.',
+  generated: 'Your PDF report is ready to download.',
+  failed: 'Report generation failed. Retrying shortly.',
+}
+
 const AssessmentResult = ({ resultId: resultIdProp, initialPdfStatus = 'pending' }) => {
   const { resultId: resultIdParam } = useParams()
   const [searchParams] = useSearchParams()
@@ -24,7 +31,9 @@ const AssessmentResult = ({ resultId: resultIdProp, initialPdfStatus = 'pending'
 
   const statusLabel = useMemo(() => getPdfStatusLabel(pdfStatus), [pdfStatus])
   const statusClass = STATUS_STYLES[pdfStatus] || STATUS_STYLES.pending
-  const showSpinner = pdfStatus === 'generating' || loadingDownload
+  const statusDetail = STATUS_DETAILS[pdfStatus] || STATUS_DETAILS.pending
+  const showSpinner = pdfStatus === 'generating'
+  const buttonLabel = pdfStatus === 'generated' ? 'Download PDF Report' : 'Check Report Status'
 
   const handleDownload = async () => {
     setLoadingDownload(true)
@@ -76,9 +85,9 @@ const AssessmentResult = ({ resultId: resultIdProp, initialPdfStatus = 'pending'
           <Button
             onClick={handleDownload}
             loading={loadingDownload}
-            disabled={!resultId || pdfStatus === 'generating'}
+            disabled={!resultId}
           >
-            Download PDF Report
+            {buttonLabel}
           </Button>
 
           {!resultId && (
@@ -89,7 +98,13 @@ const AssessmentResult = ({ resultId: resultIdProp, initialPdfStatus = 'pending'
 
           {pdfStatus === 'failed' && (
             <p className="text-sm text-text-secondary">
-              Report generation failed. Retrying shortly.
+              {statusDetail}
+            </p>
+          )}
+
+          {pdfStatus !== 'failed' && resultId && (
+            <p className="text-sm text-text-secondary">
+              {statusDetail}
             </p>
           )}
         </div>
