@@ -88,7 +88,7 @@ const corsHeaders = {
 };
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
-const FROM_EMAIL = "syedshariq0824@gmail.com";
+const FROM_EMAIL = "onboarding@resend.dev";
 const DASHBOARD_URL = "https://skill-gate-b.vercel.app/dashboard";
 const VALID_EMAIL_TYPES: EmailType[] = [
   "candidate_result",
