@@ -957,6 +957,28 @@ serve(async (req: Request) => {
       await insertNotification(supabase, data, "success");
       logStep("complete", "all eligible emails sent successfully");
 
+      if (candidateSent) {
+        try {
+          logStep("pdf", "firing generate-pdf async", {
+            assessmentId: payload.assessmentId,
+            resultId: payload.resultId,
+          });
+
+          supabase.functions
+            .invoke("generate-pdf", {
+              body: {
+                assessmentId: payload.assessmentId,
+                resultId: payload.resultId,
+              },
+            })
+            .catch((error: unknown) => {
+              console.error("[send-email][pdf] generate-pdf invoke failed", error);
+            });
+        } catch (error) {
+          console.error("[send-email][pdf] generate-pdf invoke failed", error);
+        }
+      }
+
       return jsonResponse({
         status: "sent",
         candidateSent,

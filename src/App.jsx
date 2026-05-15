@@ -11,6 +11,7 @@ import LandingPage from "./pages/LandingPage";
 import DemoLanding from "./pages/demo/DemoLanding";
 import DemoAssessment from "./pages/demo/DemoAssessment";
 import DemoResult from "./pages/demo/DemoResult";
+import AssessmentResult from "./pages/assessment/AssessmentResult";
 
 const App = () => {
 
@@ -33,6 +34,8 @@ const App = () => {
           <Route path="/demo" element={<DemoLanding />} />
           <Route path="/demo/assessment" element={<DemoAssessment />} />
           <Route path="/demo/result" element={<DemoResult />} />
+          <Route path="/assessment/result" element={<AssessmentResult />} />
+          <Route path="/assessment/result/:resultId" element={<AssessmentResult />} />
           <Route element={<PublicRoute />}>
             <Route path="/auth" element={<RecruiterAuthPage />} />
           </Route>
