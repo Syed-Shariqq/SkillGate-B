@@ -3,6 +3,8 @@ import { callAI, normalizeAIResponse, parseJSON } from '../_shared/ai.js'
 import { getCached, hashKey, setCache } from '../_shared/cache.js'
 import { checkRateLimit, getLimit } from '../_shared/rateLimit.js'
 
+console.log('[generate-questions] invoked')
+
 type JsonRecord = Record<string, unknown>
 
 type Job = {
@@ -434,21 +436,21 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const { data: lockedAssessments, error: lockError } = await supabase
-      .from('assessments')
-      .update({ status: 'generating' })
-      .eq('id', assessmentId)
-      .eq('job_id', jobId)
-      .eq('recruiter_id', recruiterId)
-      .neq('status', 'generating')
-      .select('id')
+    const { data: lockAcquired, error: lockError } = await supabase.rpc(
+      'lock_assessment_question_generation',
+      {
+        p_assessment_id: assessmentId,
+        p_job_id: jobId,
+        p_recruiter_id: recruiterId,
+      },
+    )
 
     if (lockError) {
       console.error('[generate-questions] lock failed', lockError)
       return errorResponse('Failed to lock assessment', 500, 'DB_ERROR')
     }
 
-    if (!lockedAssessments || lockedAssessments.length === 0) {
+    if (lockAcquired !== true) {
       return jsonResponse({ status: 'in_progress' })
     }
 
@@ -486,39 +488,6 @@ Deno.serve(async (req: Request) => {
         { error: 'Rate limit exceeded', count: rateLimit.count },
         429,
       )
-    }
-
-    const { data: attemptRow, error: attemptReadError } = await supabase
-      .from('assessments')
-      .select('generation_attempts')
-      .eq('id', assessmentId)
-      .eq('job_id', jobId)
-      .eq('recruiter_id', recruiterId)
-      .single<{ generation_attempts: number }>()
-
-    if (attemptReadError || !attemptRow) {
-      console.error(
-        '[generate-questions] generation_attempts read failed',
-        attemptReadError,
-      )
-      await markAssessmentFailed(supabase, assessmentId)
-      return errorResponse('Failed to update generation attempts', 500, 'DB_ERROR')
-    }
-
-    const { error: attemptsError } = await supabase
-      .from('assessments')
-      .update({ generation_attempts: attemptRow.generation_attempts + 1 })
-      .eq('id', assessmentId)
-      .eq('job_id', jobId)
-      .eq('recruiter_id', recruiterId)
-
-    if (attemptsError) {
-      console.error(
-        '[generate-questions] generation_attempts increment failed',
-        attemptsError,
-      )
-      await markAssessmentFailed(supabase, assessmentId)
-      return errorResponse('Failed to update generation attempts', 500, 'DB_ERROR')
     }
 
     const skills = normalizeSkills(job.skills)

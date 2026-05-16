@@ -1,7 +1,7 @@
 import { supabase } from '../../config/supabase'
 import { apiClient } from '../apiClient'
 
-const SESSION_KEY = 'sg_assessment_session'
+const SESSION_KEY = 'skillgate_assessment_session'
 const ACTIVE_ASSESSMENT_STATUSES = ['pending', 'ready', 'in_progress']
 const TAKEN_ASSESSMENT_STATUSES = ['submitted', 'completed', 'in_progress', 'ready', 'pending']
 const SUBMISSION_LOCKED_STATUSES = ['submitted', 'completed', 'evaluating']
@@ -69,16 +69,6 @@ const QUESTION_FIELDS = `
  * @returns {{ data: null, error: { message: string } }}
  */
 const invalidInput = (message) => ({ data: null, error: { message } })
-
-/**
- * Resolves after the requested number of milliseconds.
- *
- * @param {number} ms
- * @returns {Promise<void>}
- */
-const delay = (ms) => new Promise((resolve) => {
-  window.setTimeout(resolve, ms)
-})
 
 /**
  * Returns whether a timestamp has passed.
@@ -155,22 +145,11 @@ const isValidSession = (value) => (
   && typeof value === 'object'
   && !Array.isArray(value)
   && value.version === 1
-  && typeof value.token === 'string'
-  && value.token.trim().length > 0
   && isValidUuid(value.assessmentId)
   && isValidUuid(value.candidateId)
+  && typeof value.sessionToken === 'string'
+  && value.sessionToken.trim().length > 0
   && typeof value.createdAt === 'string'
-)
-
-/**
- * Builds a stable idempotency key for a candidate's first job attempt.
- *
- * @param {string} candidateId
- * @param {string} jobId
- * @returns {string}
- */
-const buildAssessmentIdempotencyKey = (candidateId, jobId) => (
-  `candidate:${candidateId}:job:${jobId}:attempt:1`
 )
 
 /**
@@ -218,123 +197,20 @@ const getLatestAssessmentByStatus = async (candidateId, jobId, statuses) => (
 )
 
 /**
- * Checks whether generated questions already exist for an assessment.
- *
- * @param {string} assessmentId
- * @returns {Promise<{ data: boolean | null, error: null | object }>}
- */
-const hasQuestions = async (assessmentId) => {
-  const response = await apiClient(
-    (supabase) =>
-      supabase
-        .from('questions')
-        .select('id')
-        .eq('assessment_id', assessmentId)
-        .limit(1)
-        .maybeSingle(),
-    { functionName: 'hasQuestions', params: { assessmentId } },
-  )
-
-  if (response.error) return { data: null, error: response.error }
-
-  return { data: Boolean(response.data?.id), error: null }
-}
-
-/**
- * Marks question generation as permanently failed.
- *
- * @param {string} assessmentId
- * @returns {Promise<{ data: object | null, error: null | object }>}
- */
-const markGenerationFailed = async (assessmentId) => (
-  apiClient(
-    (supabase) =>
-      supabase
-        .from('assessments')
-        .update({
-          status: 'failed',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', assessmentId)
-        .select('id,status,updated_at')
-        .maybeSingle(),
-    { functionName: 'markGenerationFailed', params: { assessmentId } },
-  )
-)
-
-/**
- * Atomically increments a job assessment-link usage counter.
- *
- * @param {string} jobId
- * @returns {Promise<{ data: unknown, error: null | object }>}
- */
-const incrementJobLinkUseCount = async (jobId) => (
-  apiClient(
-    (supabase) =>
-      supabase.rpc('increment_job_link_use_count', {
-        p_job_id: jobId,
-      }),
-    { functionName: 'incrementJobLinkUseCount', params: { jobId } },
-  )
-)
-
-/**
- * Invokes question generation with bounded retries.
- *
- * @param {string} assessmentId
- * @param {string} jobId
- * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
- */
-const generateQuestions = async (assessmentId, jobId) => {
-  let attempt = 0
-  const maxRetries = 2
-
-  while (attempt <= maxRetries) {
-    const existingQuestions = await hasQuestions(assessmentId)
-    if (existingQuestions.error) return { data: null, error: existingQuestions.error }
-    if (existingQuestions.data) return { data: { assessmentId, jobId }, error: null }
-
-    const { data, error } = await supabase.functions.invoke('generate-questions', {
-      body: {
-        assessmentId,
-        jobId,
-      },
-    })
-
-    if (!error) return { data: data ?? { assessmentId, jobId }, error: null }
-
-    attempt += 1
-    if (attempt <= maxRetries) {
-      await delay(2000)
-    }
-  }
-
-  await markGenerationFailed(assessmentId)
-
-  return {
-    data: null,
-    error: {
-      message: 'Assessment generation failed',
-      code: 'GENERATION_FAILED',
-    },
-  }
-}
-
-/**
  * Saves the active assessment session in sessionStorage.
  *
- * @param {{ token: string, assessmentId: string, candidateId: string }} session
- * @param {string} session.token Assessment link token.
+ * @param {{ assessmentId: string, candidateId: string, sessionToken: string }} session
  * @param {string} session.assessmentId Active assessment id.
  * @param {string} session.candidateId Candidate id.
+ * @param {string} session.sessionToken Signed assessment session token.
  * @returns {{ data: object | null, error: null | { message: string } }}
  */
-export const saveSession = ({ token, assessmentId, candidateId }) => {
+export const saveSession = ({ assessmentId, candidateId, sessionToken }) => {
   if (
-    typeof token !== 'string'
-    || !token.trim()
-    || !isValidUuid(assessmentId)
+    !isValidUuid(assessmentId)
     || !isValidUuid(candidateId)
+    || typeof sessionToken !== 'string'
+    || !sessionToken.trim()
   ) {
     return invalidInput('Invalid input')
   }
@@ -349,9 +225,9 @@ export const saveSession = ({ token, assessmentId, candidateId }) => {
 
   const session = {
     version: 1,
-    token: token.trim(),
     assessmentId: assessmentId.trim(),
     candidateId: candidateId.trim(),
+    sessionToken: sessionToken.trim(),
     createdAt: new Date().toISOString(),
   }
 
@@ -507,201 +383,68 @@ export const checkAlreadyTaken = async (email, jobId) => {
 /**
  * Starts or resumes a candidate assessment for a job token.
  *
- * @param {{ name: string, email: string, jobId: string, token: string }} input
+ * @param {{ name: string, email: string, token: string }} input
  * @param {string} input.name Candidate full name.
  * @param {string} input.email Candidate email address.
- * @param {string} input.jobId Job id.
  * @param {string} input.token Assessment link token.
  * @returns {Promise<{ data: { assessmentId: string, candidateId: string } | null, error: null | { message: string, code?: string } }>}
  */
-export const startAssessment = async ({ name, email, jobId, token }) => {
+export const startAssessment = async ({ name, email, token }) => {
   const normalizedName = validateName(name)
   const normalizedEmail = validateEmail(email)
-  const trimmedJobId = typeof jobId === 'string' ? jobId.trim() : ''
   const trimmedToken = typeof token === 'string' ? token.trim() : ''
 
-  if (!normalizedName || !normalizedEmail || !isValidUuid(trimmedJobId) || !trimmedToken) {
+  if (!normalizedName || !normalizedEmail || !trimmedToken) {
     return invalidInput('Invalid input')
   }
 
-  const existingCandidate = await getCandidateByEmailAndJob(normalizedEmail, trimmedJobId)
-  if (existingCandidate.error) return { data: null, error: existingCandidate.error }
+  const { data, error } = await supabase.functions.invoke('start-assessment', {
+    body: {
+      name: normalizedName,
+      email: normalizedEmail,
+      token: trimmedToken,
+    },
+  })
 
-  if (existingCandidate.data?.id) {
-    const activeAssessment = await getLatestAssessmentByStatus(
-      existingCandidate.data.id,
-      trimmedJobId,
-      ACTIVE_ASSESSMENT_STATUSES,
-    )
-
-    if (activeAssessment.error) return { data: null, error: activeAssessment.error }
-
-    if (activeAssessment.data?.id) {
-      const session = saveSession({
-        token: trimmedToken,
-        assessmentId: activeAssessment.data.id,
-        candidateId: existingCandidate.data.id,
-      })
-
-      if (session.error) return { data: null, error: session.error }
-
-      return {
-        data: {
-          assessmentId: activeAssessment.data.id,
-          candidateId: existingCandidate.data.id,
-        },
-        error: null,
-      }
-    }
-  }
-
-  const job = await apiClient(
-    (supabase) =>
-      supabase
-        .from('jobs')
-        .select('id,recruiter_id,time_limit_minutes,assessment_link_token,is_active,link_expires_at,link_max_uses,link_use_count')
-        .eq('id', trimmedJobId)
-        .eq('assessment_link_token', trimmedToken)
-        .maybeSingle(),
-    { functionName: 'startAssessment.getJob', params: { jobId: trimmedJobId } },
-  )
-
-  if (job.error) return { data: null, error: job.error }
-  if (!job.data || !job.data.is_active || isExpired(job.data.link_expires_at)) {
+  if (error) {
     return {
       data: null,
       error: {
-        message: 'Assessment link is unavailable',
-        code: 'ASSESSMENT_UNAVAILABLE',
+        message: error.message || 'Unable to start assessment',
+        code: 'START_ASSESSMENT_FAILED',
       },
     }
   }
 
+  const payload = data?.data ?? data
   if (
-    Number.isInteger(job.data.link_max_uses)
-    && job.data.link_max_uses >= 0
-    && job.data.link_use_count >= job.data.link_max_uses
+    !payload
+    || !isValidUuid(payload.assessmentId)
+    || !isValidUuid(payload.candidateId)
+    || typeof payload.sessionToken !== 'string'
   ) {
     return {
       data: null,
       error: {
-        message: 'Assessment link limit reached',
-        code: 'LINK_LIMIT_REACHED',
+        message: 'Invalid start assessment response',
+        code: 'INVALID_RESPONSE',
       },
     }
   }
-
-  const candidate = await apiClient(
-    (supabase) =>
-      supabase
-        .from('candidates')
-        .upsert(
-          {
-            job_id: trimmedJobId,
-            recruiter_id: job.data.recruiter_id,
-            full_name: normalizedName,
-            email: normalizedEmail,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'email,job_id' },
-        )
-        .select('id,job_id,recruiter_id,full_name,email,status,created_at,updated_at')
-        .maybeSingle(),
-    { functionName: 'startAssessment.upsertCandidate', params: { email: normalizedEmail, jobId: trimmedJobId } },
-  )
-
-  if (candidate.error || !candidate.data?.id) {
-    return {
-      data: null,
-      error: candidate.error || {
-        message: 'Unable to create candidate',
-        code: 'CANDIDATE_CREATE_FAILED',
-      },
-    }
-  }
-
-  const idempotencyKey = buildAssessmentIdempotencyKey(candidate.data.id, trimmedJobId)
-  const createdAt = new Date().toISOString()
-  const assessment = await apiClient(
-    (supabase) =>
-      supabase
-        .from('assessments')
-        .insert({
-          candidate_id: candidate.data.id,
-          job_id: trimmedJobId,
-          recruiter_id: job.data.recruiter_id,
-          status: 'pending',
-          attempt_number: 1,
-          time_limit_minutes: job.data.time_limit_minutes,
-          idempotency_key: idempotencyKey,
-          created_at: createdAt,
-          updated_at: createdAt,
-        })
-        .select('id,candidate_id,job_id,status,created_at')
-        .maybeSingle(),
-    { functionName: 'startAssessment.createAssessment', params: { candidateId: candidate.data.id, jobId: trimmedJobId } },
-  )
-
-  let assessmentId = assessment.data?.id
-
-  if (assessment.error || !assessmentId) {
-    const activeAssessment = await getLatestAssessmentByStatus(
-      candidate.data.id,
-      trimmedJobId,
-      ACTIVE_ASSESSMENT_STATUSES,
-    )
-
-    if (activeAssessment.error) return { data: null, error: activeAssessment.error }
-
-    if (activeAssessment.data?.id) {
-      const session = saveSession({
-        token: trimmedToken,
-        assessmentId: activeAssessment.data.id,
-        candidateId: candidate.data.id,
-      })
-
-      if (session.error) return { data: null, error: session.error }
-
-      return {
-        data: {
-          assessmentId: activeAssessment.data.id,
-          candidateId: candidate.data.id,
-        },
-        error: null,
-      }
-    }
-
-    return {
-      data: null,
-      error: assessment.error || {
-        message: 'Unable to create assessment',
-        code: 'ASSESSMENT_CREATE_FAILED',
-      },
-    }
-  }
-
-  const increment = await incrementJobLinkUseCount(trimmedJobId)
-  if (increment.error) {
-    await markGenerationFailed(assessmentId)
-
-    return { data: null, error: increment.error }
-  }
-
-  const generation = await generateQuestions(assessmentId, trimmedJobId)
-  if (generation.error) return generation
 
   const session = saveSession({
-    token: trimmedToken,
-    assessmentId,
-    candidateId: candidate.data.id,
+    assessmentId: payload.assessmentId,
+    candidateId: payload.candidateId,
+    sessionToken: payload.sessionToken,
   })
 
   if (session.error) return { data: null, error: session.error }
 
   return {
     data: {
-      assessmentId,
-      candidateId: candidate.data.id,
+      assessmentId: payload.assessmentId,
+      candidateId: payload.candidateId,
+      assessmentStatus: payload.assessmentStatus,
     },
     error: null,
   }

@@ -361,6 +361,14 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Disable platform-level JWT verification for generate-questions.
+# This function is called internally by start-assessment (service-to-service).
+# Candidates use custom session JWTs, NOT Supabase auth JWTs.
+# Without this block, `supabase functions deploy` overwrites the dashboard toggle
+# and re-enables JWT auth, causing 401 before Deno.serve handler executes.
+[functions.generate-questions]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
