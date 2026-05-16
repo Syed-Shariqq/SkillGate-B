@@ -370,34 +370,18 @@ Deno.serve(async (req: Request) => {
   console.log('[generate-questions] start')
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  const authHeader = req.headers.get('Authorization') ?? ''
 
-  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     console.error('[generate-questions] missing Supabase environment')
     return errorResponse('Server configuration error', 500, 'CONFIG_ERROR')
   }
 
-  const authClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false },
-  })
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   })
 
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await authClient.auth.getUser()
-    const recruiterId = user?.id
-
-    if (authError || !recruiterId) {
-      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED')
-    }
-
     const body = await readRequestBody(req)
     const assessmentId =
       typeof body?.assessmentId === 'string' ? body.assessmentId : ''
@@ -405,6 +389,28 @@ Deno.serve(async (req: Request) => {
 
     if (!uuidPattern.test(assessmentId) || !uuidPattern.test(jobId)) {
       return errorResponse('Invalid request body', 400, 'INVALID_REQUEST')
+    }
+
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .select('title, description, skills, time_limit_minutes, recruiter_id')
+      .eq('id', jobId)
+      .maybeSingle<Job>()
+
+    if (jobError) {
+      console.error('[generate-questions] job fetch failed', jobError)
+      return errorResponse('Failed to fetch job', 500, 'DB_ERROR')
+    }
+
+    if (!job) {
+      return errorResponse('Job not found', 404, 'JOB_NOT_FOUND')
+    }
+
+    const recruiterId = job.recruiter_id
+
+    if (!recruiterId) {
+      console.error('[generate-questions] job missing recruiter_id')
+      return errorResponse('Server configuration error', 500, 'CONFIG_ERROR')
     }
 
     const { count: existingQuestionCount, error: existingQuestionsError } = await supabase
@@ -426,22 +432,6 @@ Deno.serve(async (req: Request) => {
         status: 'already_exists',
         questionCount: existingQuestionCount ?? 0,
       })
-    }
-
-    const { data: job, error: jobError } = await supabase
-      .from('jobs')
-      .select('title, description, skills, time_limit_minutes, recruiter_id')
-      .eq('id', jobId)
-      .eq('recruiter_id', recruiterId)
-      .maybeSingle<Job>()
-
-    if (jobError) {
-      console.error('[generate-questions] job fetch failed', jobError)
-      return errorResponse('Failed to fetch job', 500, 'DB_ERROR')
-    }
-
-    if (!job) {
-      return errorResponse('Job not found', 404, 'JOB_NOT_FOUND')
     }
 
     const { data: lockedAssessments, error: lockError } = await supabase
