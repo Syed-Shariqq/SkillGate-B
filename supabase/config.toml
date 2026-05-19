@@ -381,6 +381,12 @@ verify_jwt = false
 [functions.get-candidate-result]
 verify_jwt = false
 
+[functions.record-assessment-event]
+verify_jwt = false
+
+[functions.get-job-by-token]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

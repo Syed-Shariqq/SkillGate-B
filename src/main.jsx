@@ -6,7 +6,14 @@ import { startAssessment, getSession, clearSession, getAssessment } from './serv
 import { getResult, pollForResult } from "./services/assessment/resultService";
 import { supabase } from "./config/supabase.js";
 
-window.__test = { startAssessment,getAssessment, getSession, clearSession }
+window.__test = {
+  startAssessment,
+  getAssessment,
+  getSession,
+  clearSession,
+  getResult,
+  pollForResult,
+}
 
 window.supabase = supabase
 

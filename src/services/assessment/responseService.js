@@ -1,23 +1,20 @@
 import { apiClient } from '../apiClient'
+import { getSessionFromStorage } from './assessmentService'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i
+const MAX_ANSWER_LENGTH = 10000
+const MAX_TIME_TAKEN_SECONDS = 86400
 
 /**
  * Returns a normalized invalid-input response.
  *
  * @param {string} message
- * @returns {{ data: null, error: { message: string } }}
+ * @param {string} [code]
+ * @returns {{ data: null, error: { message: string, code?: string } }}
  */
-const invalidInput = (message) => ({ data: null, error: { message } })
-
-/**
- * Resolves after the requested number of milliseconds.
- *
- * @param {number} ms
- * @returns {Promise<void>}
- */
-const delay = (ms) => new Promise((resolve) => {
-  window.setTimeout(resolve, ms)
+const invalidInput = (message, code = 'VALIDATION_ERROR') => ({
+  data: null,
+  error: { message, code },
 })
 
 /**
@@ -29,20 +26,53 @@ const delay = (ms) => new Promise((resolve) => {
 const isValidUuid = (value) => typeof value === 'string' && UUID_PATTERN.test(value.trim())
 
 /**
- * Validates a non-negative integer.
+ * Validates a bounded non-negative integer.
  *
  * @param {unknown} value
+ * @param {number} max
  * @returns {boolean}
  */
-const isNonNegativeInteger = (value) => Number.isInteger(value) && value >= 0
+const isBoundedInteger = (value, max) => Number.isInteger(value) && value >= 0 && value <= max
+
+/**
+ * Returns the stored candidate session for an assessment.
+ *
+ * @param {string} assessmentId Assessment id.
+ * @returns {{ data: object | null, error: null | { message: string, code?: string } }}
+ */
+const getSessionForAssessment = (assessmentId) => {
+  const session = getSessionFromStorage().data
+
+  if (!session || session.assessmentId !== assessmentId) {
+    return invalidInput('Assessment session not found', 'SESSION_NOT_FOUND')
+  }
+
+  return { data: session, error: null }
+}
+
+/**
+ * Invokes a candidate Edge Function through the shared apiClient normalization.
+ *
+ * @param {string} functionName Supabase Edge Function name.
+ * @param {object} body Request body.
+ * @param {object} params Safe diagnostic params.
+ * @returns {Promise<{ data: unknown, error: null | { message: string, code?: string, details?: unknown } }>}
+ */
+const invokeFunction = async (functionName, body, params) => {
+  const response = await apiClient(
+    (supabase) => supabase.functions.invoke(functionName, { body }),
+    { functionName, params },
+  )
+
+  return { data: response.data ?? null, error: response.error }
+}
 
 /**
  * Saves or updates a candidate response for a question.
  *
- * @param {{ assessmentId: string, questionId: string, candidateId: string, answer: string, timeTaken: number }} input
+ * @param {{ assessmentId: string, questionId: string, answer: string, timeTaken: number }} input
  * @param {string} input.assessmentId Assessment id.
  * @param {string} input.questionId Question id.
- * @param {string} input.candidateId Candidate id.
  * @param {string} input.answer Candidate answer text.
  * @param {number} input.timeTaken Time taken in seconds.
  * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
@@ -50,50 +80,37 @@ const isNonNegativeInteger = (value) => Number.isInteger(value) && value >= 0
 export const saveResponse = async ({
   assessmentId,
   questionId,
-  candidateId,
   answer,
   timeTaken,
 }) => {
   const trimmedAssessmentId = typeof assessmentId === 'string' ? assessmentId.trim() : ''
   const trimmedQuestionId = typeof questionId === 'string' ? questionId.trim() : ''
-  const trimmedCandidateId = typeof candidateId === 'string' ? candidateId.trim() : ''
-  const trimmedAnswer = typeof answer === 'string' ? answer.trim() : ''
 
   if (
     !isValidUuid(trimmedAssessmentId)
     || !isValidUuid(trimmedQuestionId)
-    || !isValidUuid(trimmedCandidateId)
-    || !trimmedAnswer
-    || !isNonNegativeInteger(timeTaken)
+    || typeof answer !== 'string'
+    || answer.length > MAX_ANSWER_LENGTH
+    || !isBoundedInteger(timeTaken, MAX_TIME_TAKEN_SECONDS)
   ) {
     return invalidInput('Invalid input')
   }
 
-  const timestamp = new Date().toISOString()
-  const response = await apiClient(
-    (supabase) =>
-      supabase
-        .from('responses')
-        .upsert(
-          {
-            assessment_id: trimmedAssessmentId,
-            question_id: trimmedQuestionId,
-            candidate_id: trimmedCandidateId,
-            answer_given: trimmedAnswer,
-            time_taken_seconds: timeTaken,
-            updated_at: timestamp,
-          },
-          { onConflict: 'assessment_id,question_id' },
-        )
-        .select('*')
-        .maybeSingle(),
+  const session = getSessionForAssessment(trimmedAssessmentId)
+  if (session.error) return session
+
+  const response = await invokeFunction(
+    'save-response',
     {
-      functionName: 'saveResponse',
-      params: {
-        assessmentId: trimmedAssessmentId,
-        questionId: trimmedQuestionId,
-        candidateId: trimmedCandidateId,
-      },
+      assessmentId: trimmedAssessmentId,
+      questionId: trimmedQuestionId,
+      answer,
+      timeTaken,
+      sessionToken: session.data.sessionToken,
+    },
+    {
+      assessmentId: trimmedAssessmentId,
+      questionId: trimmedQuestionId,
     },
   )
 
@@ -101,108 +118,80 @@ export const saveResponse = async ({
 }
 
 /**
- * Records tab-switch count and flags an assessment after three switches.
+ * Submits an assessment through the candidate Edge Function.
  *
  * @param {string} assessmentId Assessment id.
- * @param {number} count Tab-switch count.
- * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
+ * @returns {Promise<{ data: { submitted: boolean, assessmentId: string, submittedAt?: string | null } | null, error: null | { message: string, code?: string } }>}
  */
-export const recordTabSwitch = async (assessmentId, count) => {
-  const trimmedAssessmentId = typeof assessmentId === 'string' ? assessmentId.trim() : ''
-  if (!isValidUuid(trimmedAssessmentId) || !isNonNegativeInteger(count)) {
-    return invalidInput('Invalid input')
-  }
-
-  const timestamp = new Date().toISOString()
-  const response = await apiClient(
-    (supabase) =>
-      supabase
-        .from('assessments')
-        .update({
-          tab_switches: count,
-          is_flagged: count >= 3,
-          updated_at: timestamp,
-        })
-        .eq('id', trimmedAssessmentId)
-        .select('id,tab_switches,is_flagged,updated_at')
-        .maybeSingle(),
-    { functionName: 'recordTabSwitch', params: { assessmentId: trimmedAssessmentId, count } },
-  )
-
-  return { data: response.data ?? null, error: response.error }
-}
-
-/**
- * Records a paste attempt using a compare-and-swap retry loop to avoid lost updates.
- *
- * @param {string} assessmentId Assessment id.
- * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
- */
-export const recordPasteAttempt = async (assessmentId) => {
+export const submitAssessment = async (assessmentId) => {
   const trimmedAssessmentId = typeof assessmentId === 'string' ? assessmentId.trim() : ''
   if (!isValidUuid(trimmedAssessmentId)) return invalidInput('Invalid input')
 
-  let attempt = 0
+  const session = getSessionForAssessment(trimmedAssessmentId)
+  if (session.error) return session
 
-  while (attempt < 3) {
-    const current = await apiClient(
-      (supabase) =>
-        supabase
-          .from('assessments')
-          .select('id,paste_attempts')
-          .eq('id', trimmedAssessmentId)
-          .maybeSingle(),
-      { functionName: 'recordPasteAttempt.getCurrent', params: { assessmentId: trimmedAssessmentId } },
-    )
-
-    if (current.error) return { data: null, error: current.error }
-    if (!current.data) {
-      return {
-        data: null,
-        error: {
-          message: 'Assessment not found',
-          code: 'ASSESSMENT_NOT_FOUND',
-        },
-      }
-    }
-
-    const currentCount = Number.isInteger(current.data.paste_attempts)
-      ? current.data.paste_attempts
-      : 0
-    const timestamp = new Date().toISOString()
-    const updated = await apiClient(
-      (supabase) =>
-        supabase
-          .from('assessments')
-          .update({
-            paste_attempts: currentCount + 1,
-            updated_at: timestamp,
-          })
-          .eq('id', trimmedAssessmentId)
-          .eq('paste_attempts', currentCount)
-          .select('id,paste_attempts,updated_at')
-          .maybeSingle(),
-      {
-        functionName: 'recordPasteAttempt.update',
-        params: {
-          assessmentId: trimmedAssessmentId,
-          currentCount,
-        },
-      },
-    )
-
-    if (updated.error) return { data: null, error: updated.error }
-    if (updated.data) return { data: updated.data, error: null }
-
-    attempt += 1
-    await delay(50)
-  }
-
-  return {
-    data: null,
-    error: {
-      message: 'Unable to record paste attempt',
-      code: 'PASTE_ATTEMPT_CONFLICT',
+  const response = await invokeFunction(
+    'submit-assessment',
+    {
+      assessmentId: trimmedAssessmentId,
+      sessionToken: session.data.sessionToken,
     },
-  }
+    { assessmentId: trimmedAssessmentId },
+  )
+
+  return { data: response.data ?? null, error: response.error }
 }
+
+/**
+ * Records a candidate assessment telemetry event.
+ *
+ * @param {string} assessmentId Assessment id.
+ * @param {'tab_switch' | 'paste_attempt'} eventType Event type.
+ * @param {object} [metadata] Structured event metadata.
+ * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
+ */
+const recordAssessmentEvent = async (assessmentId, eventType, metadata = {}) => {
+  const trimmedAssessmentId = typeof assessmentId === 'string' ? assessmentId.trim() : ''
+  if (!isValidUuid(trimmedAssessmentId)) return invalidInput('Invalid input')
+
+  const session = getSessionForAssessment(trimmedAssessmentId)
+  if (session.error) return session
+
+  const response = await invokeFunction(
+    'record-assessment-event',
+    {
+      assessmentId: trimmedAssessmentId,
+      sessionToken: session.data.sessionToken,
+      eventType,
+      metadata,
+    },
+    { assessmentId: trimmedAssessmentId, eventType },
+  )
+
+  return { data: response.data ?? null, error: response.error }
+}
+
+/**
+ * Records a tab-switch telemetry event.
+ *
+ * @param {string} assessmentId Assessment id.
+ * @param {number} count Client-observed tab-switch count.
+ * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
+ */
+export const recordTabSwitch = async (assessmentId, count) => {
+  if (!isBoundedInteger(count, MAX_TIME_TAKEN_SECONDS)) {
+    return invalidInput('Invalid input')
+  }
+
+  return recordAssessmentEvent(assessmentId, 'tab_switch', { count })
+}
+
+/**
+ * Records a paste-attempt telemetry event.
+ *
+ * @param {string} assessmentId Assessment id.
+ * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
+ */
+export const recordPasteAttempt = async (assessmentId) => (
+  recordAssessmentEvent(assessmentId, 'paste_attempt')
+)
