@@ -2,7 +2,7 @@ import { apiClient } from '../apiClient'
 
 const SESSION_KEY = 'skillgate_assessment_session'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const STATUS_TRANSITIONS = new Map([
   ['pending', new Set(['ready'])],
@@ -99,13 +99,34 @@ const isValidSession = (value) => (
  * @param {object} [params] Safe diagnostic params.
  * @returns {Promise<{ data: unknown, error: null | { message: string, code?: string, details?: unknown } }>}
  */
-const invokeFunction = async (functionName, body, params = {}) => {
+const invokeFunction = async (
+  functionName,
+  body,
+  params = {},
+) => {
   const response = await apiClient(
-    (supabase) => supabase.functions.invoke(functionName, { body }),
+    (supabase) =>
+      supabase.functions.invoke(
+        functionName,
+        { body },
+      ),
     { functionName, params },
   )
 
-  return { data: response.data ?? null, error: response.error }
+  if (response.error) {
+    return {
+      data: null,
+      error: response.error,
+    }
+  }
+
+  const payload =
+    response.data?.data ?? response.data
+
+  return {
+    data: payload ?? null,
+    error: null,
+  }
 }
 
 /**
@@ -307,7 +328,7 @@ export const startAssessment = async ({ name, email, token }) => {
     }
   }
 
-  const payload = response.data
+  const payload = response.data?.data ?? response.data
   if (
     !payload
     || !isValidUuid(payload.assessmentId)
@@ -347,20 +368,18 @@ export const startAssessment = async ({ name, email, token }) => {
  * @param {string} assessmentId Assessment id.
  * @returns {Promise<{ data: { assessment: object | null, questions: Array<object> } | null, error: null | { message: string, code?: string } }>}
  */
-export const getAssessment = async (assessmentId) => {
+export const getAssessment = async ({
+  assessmentId,
+  sessionToken,
+}) => {
   const trimmedAssessmentId = typeof assessmentId === 'string' ? assessmentId.trim() : ''
   if (!isValidUuid(trimmedAssessmentId)) return invalidInput('Invalid input')
-
-  const session = getSessionFromStorage().data
-  if (!session || session.assessmentId !== trimmedAssessmentId) {
-    return invalidInput('Assessment session not found', 'SESSION_NOT_FOUND')
-  }
 
   const response = await invokeFunction(
     'get-assessment',
     {
       assessmentId: trimmedAssessmentId,
-      sessionToken: session.sessionToken,
+      sessionToken: sessionToken,
     },
     { assessmentId: trimmedAssessmentId },
   )

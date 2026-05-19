@@ -10,7 +10,7 @@ const PDF_STATUS_LABELS = {
 };
 
 const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TERMINAL_RESULT_STATUSES = new Set(["completed", "failed"]);
 const RETRYABLE_ERROR_DELAY_MS = 2000;
 const MAX_BACKOFF_DELAY_MS = 15000;
@@ -128,24 +128,39 @@ const invokeFunction = async (functionName, body, params) => {
  * @param {string} assessmentId Assessment id.
  * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
  */
-export const getCandidateResult = async (assessmentId) => {
+export const getCandidateResult = async ({
+  assessmentId,
+  sessionToken,
+}) => {
   const trimmedAssessmentId =
-    typeof assessmentId === "string" ? assessmentId.trim() : "";
-  if (!isValidUuid(trimmedAssessmentId)) return invalidInput("Invalid input");
+    typeof assessmentId === "string"
+      ? assessmentId.trim()
+      : "";
 
-  const session = getSessionForAssessment(trimmedAssessmentId);
-  if (session.error) return session;
+  if (!isValidUuid(trimmedAssessmentId)) {
+    return invalidInput("Invalid input");
+  }
+
+  if (
+    typeof sessionToken !== "string"
+    || !sessionToken.trim()
+  ) {
+    return invalidInput("Invalid session token");
+  }
 
   const response = await invokeFunction(
     "get-candidate-result",
     {
       assessmentId: trimmedAssessmentId,
-      sessionToken: session.data.sessionToken,
+      sessionToken,
     },
     { assessmentId: trimmedAssessmentId },
   );
 
-  return { data: response.data ?? null, error: response.error };
+  return {
+    data: response.data ?? null,
+    error: response.error,
+  };
 };
 
 /**
@@ -154,7 +169,7 @@ export const getCandidateResult = async (assessmentId) => {
  * @param {string} assessmentId Assessment id.
  * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
  */
-export const getResult = async (assessmentId) => getCandidateResult(assessmentId);
+export const getResult = async (assessmentId) => getCandidateResult({ assessmentId });
 
 /**
  * Normalizes legacy and options-object polling arguments.

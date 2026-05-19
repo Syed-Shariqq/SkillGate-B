@@ -1,7 +1,7 @@
 import { apiClient } from '../apiClient'
 import { getSessionFromStorage } from './assessmentService'
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const MAX_ANSWER_LENGTH = 10000
 const MAX_TIME_TAKEN_SECONDS = 86400
 
@@ -123,18 +123,19 @@ export const saveResponse = async ({
  * @param {string} assessmentId Assessment id.
  * @returns {Promise<{ data: { submitted: boolean, assessmentId: string, submittedAt?: string | null } | null, error: null | { message: string, code?: string } }>}
  */
-export const submitAssessment = async (assessmentId) => {
+export const submitAssessment = async ({assessmentId, sessionToken}) => {
   const trimmedAssessmentId = typeof assessmentId === 'string' ? assessmentId.trim() : ''
   if (!isValidUuid(trimmedAssessmentId)) return invalidInput('Invalid input')
 
-  const session = getSessionForAssessment(trimmedAssessmentId)
-  if (session.error) return session
+ if (typeof sessionToken !== 'string' || !sessionToken.trim()) {
+  return invalidInput('Invalid session token')
+}
 
   const response = await invokeFunction(
     'submit-assessment',
     {
       assessmentId: trimmedAssessmentId,
-      sessionToken: session.data.sessionToken,
+      sessionToken: sessionToken,
     },
     { assessmentId: trimmedAssessmentId },
   )

@@ -3,8 +3,9 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
 import { startAssessment, getSession, clearSession, getAssessment } from './services/assessment/assessmentService';
-import { getResult, pollForResult } from "./services/assessment/resultService";
+import { getCandidateResult, getResult, pollForResult } from "./services/assessment/resultService";
 import { supabase } from "./config/supabase.js";
+import { saveResponse, submitAssessment } from "./services/assessment/responseService.js";
 
 window.__test = {
   startAssessment,
@@ -13,6 +14,9 @@ window.__test = {
   clearSession,
   getResult,
   pollForResult,
+  saveResponse,
+  submitAssessment,
+  getCandidateResult,
 }
 
 window.supabase = supabase
