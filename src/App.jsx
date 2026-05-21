@@ -13,6 +13,22 @@ import DemoAssessment from "./pages/demo/DemoAssessment";
 import DemoResult from "./pages/demo/DemoResult";
 import AssessmentResult from "./pages/assessment/AssessmentResult";
 
+// Recruiter Pages
+import CreateJob from "./pages/recruiter/jobs/CreateJob";
+import JobDetail from "./pages/recruiter/jobs/JobDetail";
+import JobSettings from "./pages/recruiter/jobs/JobSettings";
+import CandidateProfile from "./pages/recruiter/candidates/CandidateProfile";
+import RecruiterAnalytics from "./pages/recruiter/analytics/RecruiterAnalytics";
+import BillingPage from "./pages/recruiter/billing/BillingPage";
+import RecruiterSettings from "./pages/recruiter/settings/RecruiterSettings";
+
+// Assessment Pages
+import AssessmentExpired from "./pages/assessment/AssessmentExpired";
+import AssessmentAlreadyTaken from "./pages/assessment/AssessmentAlreadyTaken";
+import AssessmentLanding from "./pages/assessment/AssessmentLanding";
+import AssessmentPage from "./pages/assessment/AssessmentPage";
+import AssessmentSubmitted from "./pages/assessment/AssessmentSubmitted";
+
 const App = () => {
 
   return (
@@ -36,6 +52,15 @@ const App = () => {
           <Route path="/demo/result" element={<DemoResult />} />
           <Route path="/assessment/result" element={<AssessmentResult />} />
           <Route path="/assessment/result/:resultId" element={<AssessmentResult />} />
+          
+          {/* Public Assessment Routes */}
+          <Route path="/assess/expired" element={<AssessmentExpired />} />
+          <Route path="/assess/taken" element={<AssessmentAlreadyTaken />} />
+          <Route path="/assess/:token" element={<AssessmentLanding />} />
+          <Route path="/assess/:token/test" element={<AssessmentPage />} />
+          <Route path="/assess/:token/submitted" element={<AssessmentSubmitted />} />
+          <Route path="/assess/:token/result/:assessmentId" element={<AssessmentResult />} />
+
           <Route element={<PublicRoute />}>
             <Route path="/auth" element={<RecruiterAuthPage />} />
           </Route>
@@ -44,6 +69,13 @@ const App = () => {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<RecruiterDashboard />} />
+            <Route path="/jobs/create" element={<CreateJob />} />
+            <Route path="/jobs/:jobId" element={<JobDetail />} />
+            <Route path="/jobs/:jobId/settings" element={<JobSettings />} />
+            <Route path="/candidates/:candidateId" element={<CandidateProfile />} />
+            <Route path="/analytics" element={<RecruiterAnalytics />} />
+            <Route path="/billing" element={<BillingPage />} />
+            <Route path="/settings" element={<RecruiterSettings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
@@ -54,3 +86,4 @@ const App = () => {
 };
 
 export default App;
+
