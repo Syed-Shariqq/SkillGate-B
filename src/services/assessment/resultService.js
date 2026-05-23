@@ -128,23 +128,15 @@ const invokeFunction = async (functionName, body, params) => {
  * @param {string} assessmentId Assessment id.
  * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
  */
-export const getCandidateResult = async ({
-  assessmentId,
-  sessionToken,
-}) => {
+export const getCandidateResult = async ({ assessmentId, sessionToken }) => {
   const trimmedAssessmentId =
-    typeof assessmentId === "string"
-      ? assessmentId.trim()
-      : "";
+    typeof assessmentId === "string" ? assessmentId.trim() : "";
 
   if (!isValidUuid(trimmedAssessmentId)) {
     return invalidInput("Invalid input");
   }
 
-  if (
-    typeof sessionToken !== "string"
-    || !sessionToken.trim()
-  ) {
+  if (typeof sessionToken !== "string" || !sessionToken.trim()) {
     return invalidInput("Invalid session token");
   }
 
@@ -169,7 +161,8 @@ export const getCandidateResult = async ({
  * @param {string} assessmentId Assessment id.
  * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
  */
-export const getResult = async (assessmentId) => getCandidateResult({ assessmentId });
+export const getResult = async ({ assessmentId, sessionToken }) =>
+  getCandidateResult({ assessmentId, sessionToken });
 
 /**
  * Normalizes legacy and options-object polling arguments.
@@ -187,7 +180,9 @@ const normalizePollOptions = (options) => {
   }
 
   return {
-    maxAttempts: Number.isInteger(options?.maxAttempts) ? options.maxAttempts : 15,
+    maxAttempts: Number.isInteger(options?.maxAttempts)
+      ? options.maxAttempts
+      : 15,
     initialDelayMs: Number.isInteger(options?.initialDelayMs)
       ? options.initialDelayMs
       : RETRYABLE_ERROR_DELAY_MS,
@@ -207,11 +202,7 @@ export const pollForResult = async (assessmentId, options = 15) => {
     typeof assessmentId === "string" ? assessmentId.trim() : "";
   if (!isValidUuid(trimmedAssessmentId)) return invalidInput("Invalid input");
 
-  const {
-    maxAttempts,
-    initialDelayMs,
-    signal,
-  } = normalizePollOptions(options);
+  const { maxAttempts, initialDelayMs, signal } = normalizePollOptions(options);
 
   if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
     return invalidInput("Invalid input");
@@ -221,19 +212,31 @@ export const pollForResult = async (assessmentId, options = 15) => {
   let consecutiveErrors = 0;
   let delayMs = Math.max(250, initialDelayMs);
 
+  const session = getSessionFromStorage().data;
+  if (!session || session.assessmentId !== trimmedAssessmentId) {
+    return invalidInput("Assessment session not found", "SESSION_NOT_FOUND");
+  }
+
   while (attempt < maxAttempts) {
     if (signal?.aborted) {
       return invalidInput("Polling cancelled", "POLL_CANCELLED");
     }
 
-    const result = await getCandidateResult(trimmedAssessmentId);
+    const result = await getCandidateResult({
+      assessmentId: trimmedAssessmentId,
+      sessionToken: session.sessionToken,
+    });
 
     if (result.error) {
       consecutiveErrors += 1;
 
       if (
-        ["TOKEN_INVALID", "TOKEN_EXPIRED", "SESSION_NOT_FOUND", "VALIDATION_ERROR"]
-          .includes(result.error.code)
+        [
+          "TOKEN_INVALID",
+          "TOKEN_EXPIRED",
+          "SESSION_NOT_FOUND",
+          "VALIDATION_ERROR",
+        ].includes(result.error.code)
       ) {
         return result;
       }

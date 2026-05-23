@@ -73,6 +73,7 @@ function normalizeMetadata(value: unknown): JsonRecord {
 function normalizeTabSwitchCount(metadata: JsonRecord): number | null {
   const count = metadata.count;
 
+  if (typeof count !== "number") return null;
   if (!Number.isInteger(count)) return null;
   if (count < 0 || count > MAX_EVENT_COUNT) return null;
 

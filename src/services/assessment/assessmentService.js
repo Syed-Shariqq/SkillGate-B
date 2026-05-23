@@ -396,8 +396,8 @@ export const getAssessment = async ({
  * @param {string} assessmentId Assessment id.
  * @returns {Promise<{ data: object | null, error: null | { message: string, code?: string } }>}
  */
-export const markStarted = async (assessmentId) => {
-  const response = await getAssessment(assessmentId)
+export const markStarted = async (assessmentId, sessionToken) => {
+  const response = await getAssessment({ assessmentId, sessionToken })
 
   return {
     data: response.data?.assessment ?? null,
