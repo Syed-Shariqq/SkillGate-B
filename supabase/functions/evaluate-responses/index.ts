@@ -114,11 +114,7 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
-const VALID_HIRING_SIGNALS = [
-  "Strong Yes",
-  "Maybe",
-  "No",
-];
+const VALID_HIRING_SIGNALS = ["Strong Yes", "Maybe", "No"];
 
 function jsonResponse(body: JsonRecord, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -215,10 +211,7 @@ function isValidSummary(data: unknown): boolean {
   );
 }
 
-function fallbackSummary(
-  passed: boolean,
-  overallScore: number,
-): Summary {
+function fallbackSummary(passed: boolean, overallScore: number): Summary {
   return {
     feedbackSummary: "Thank you for completing the assessment.",
     executiveSummary: "Candidate completed the technical assessment.",
@@ -373,9 +366,7 @@ async function evaluateResponses(
       const answerGiven = res?.answer_given?.trim() ?? "";
 
       if (question.question_type === "mcq") {
-        const normalizedAnswer = (res?.answer_given ?? "")
-          .trim()
-          .toLowerCase();
+        const normalizedAnswer = (res?.answer_given ?? "").trim().toLowerCase();
 
         const normalizedCorrect = (question.correct_answer ?? "")
           .trim()
@@ -400,8 +391,8 @@ async function evaluateResponses(
           feedback: isMissingAnswer
             ? "No answer provided"
             : isCorrect
-            ? "Correct"
-            : "Incorrect",
+              ? "Correct"
+              : "Incorrect",
           missedConcepts: [],
         };
       }
@@ -470,8 +461,8 @@ function buildSkillScores(evaluated: EvaluatedResponse[]): SkillScoreSummary[] {
       score:
         totals.pointsPossible > 0
           ? Number(
-            ((totals.pointsEarned / totals.pointsPossible) * 100).toFixed(2),
-          )
+              ((totals.pointsEarned / totals.pointsPossible) * 100).toFixed(2),
+            )
           : 0,
     }),
   );
@@ -488,14 +479,15 @@ function calculateConfidenceScore(
     .filter((score: number) => Number.isFinite(score));
   const meanSkillScore =
     numericSkillScores.length > 0
-      ? numericSkillScores.reduce((sum: number, score: number) => sum + score, 0) /
-        numericSkillScores.length
+      ? numericSkillScores.reduce(
+          (sum: number, score: number) => sum + score,
+          0,
+        ) / numericSkillScores.length
       : 0;
   const variance =
     numericSkillScores.length > 1
       ? numericSkillScores.reduce(
-          (sum: number, score: number) =>
-            sum + (score - meanSkillScore) ** 2,
+          (sum: number, score: number) => sum + (score - meanSkillScore) ** 2,
           0,
         ) / numericSkillScores.length
       : 0;
@@ -506,16 +498,16 @@ function calculateConfidenceScore(
     timeLimitSeconds > 0 ? clampScore(timeTakenSeconds / timeLimitSeconds) : 0;
   const textAnswerLengths = evaluated
     .filter((item: EvaluatedResponse) => item.question.question_type === "text")
-    .map((item: EvaluatedResponse) =>
-      item.response?.answer_given?.trim().length ?? 0
+    .map(
+      (item: EvaluatedResponse) =>
+        item.response?.answer_given?.trim().length ?? 0,
     );
   const averageTextLength =
     textAnswerLengths.length > 0
       ? textAnswerLengths.reduce(
           (sum: number, length: number) => sum + length,
           0,
-        ) /
-        textAnswerLengths.length
+        ) / textAnswerLengths.length
       : 0;
   const depthFactor = clampScore(Math.min(averageTextLength, 300) / 300);
   const confidenceScore =
@@ -595,7 +587,11 @@ Deno.serve(async (req) => {
       .maybeSingle<Assessment>();
 
     if (assessmentError) {
-      console.error("[evaluate][db]", "assessment fetch failed", assessmentError);
+      console.error(
+        "[evaluate][db]",
+        "assessment fetch failed",
+        assessmentError,
+      );
       throw new Error(assessmentError.message);
     }
 
@@ -637,7 +633,11 @@ Deno.serve(async (req) => {
         .eq("id", assessmentId)
         .throwOnError();
     } catch (error) {
-      console.error("[evaluate][db]", "assessment evaluating update failed", error);
+      console.error(
+        "[evaluate][db]",
+        "assessment evaluating update failed",
+        error,
+      );
       throw error;
     }
 
@@ -712,8 +712,8 @@ Deno.serve(async (req) => {
             const aiFeedback = isMissingAnswer
               ? "No answer provided"
               : isCorrect
-              ? "Correct"
-              : "Incorrect";
+                ? "Correct"
+                : "Incorrect";
 
             if (res) {
               await supabase
@@ -745,11 +745,7 @@ Deno.serve(async (req) => {
               })
               .throwOnError();
           } catch (error) {
-            console.error(
-              "[evaluate][mcq]",
-              question.id,
-              error,
-            );
+            console.error("[evaluate][mcq]", question.id, error);
           }
         }),
     );
@@ -774,7 +770,11 @@ Deno.serve(async (req) => {
       try {
         await Promise.all(
           responseUpdates.map(({ id, ...values }: ResponseUpdate) =>
-            supabase.from("responses").update(values).eq("id", id).throwOnError()
+            supabase
+              .from("responses")
+              .update(values)
+              .eq("id", id)
+              .throwOnError(),
           ),
         );
       } catch (error) {
@@ -878,28 +878,25 @@ Deno.serve(async (req) => {
     const variance =
       skillValues.length > 0
         ? skillValues.reduce(
-          (sum: number, score: number) => sum + (score - mean) ** 2,
-          0,
-        ) /
-          skillValues.length
+            (sum: number, score: number) => sum + (score - mean) ** 2,
+            0,
+          ) / skillValues.length
         : 0;
     const consistencyFactor =
-      skillValues.length > 0
-        ? clampRange(1 - variance / 2500, 0, 1)
-        : 0;
+      skillValues.length > 0 ? clampRange(1 - variance / 2500, 0, 1) : 0;
     const textAnswers = questions
       .filter((question: Question) => question.question_type === "text")
-      .map((question: Question) =>
-        finalResponseMap[question.id]?.answer_given?.trim() ?? ""
+      .map(
+        (question: Question) =>
+          finalResponseMap[question.id]?.answer_given?.trim() ?? "",
       )
       .filter((answer: string) => answer.length > 0);
     const avgLength =
       textAnswers.length > 0
         ? textAnswers.reduce(
-          (sum: number, answer: string) => sum + answer.length,
-          0,
-        ) /
-          textAnswers.length
+            (sum: number, answer: string) => sum + answer.length,
+            0,
+          ) / textAnswers.length
         : 0;
     const depthFactor =
       textAnswers.length > 0 ? clampRange(avgLength / 300, 0, 1) : 0.5;
@@ -1080,38 +1077,38 @@ CONSTRAINTS:
             rawSummary.improvementResources,
           )
             ? rawSummary.improvementResources
-              .filter(isRecord)
-              .filter((resource: JsonRecord) => {
-                const skill = resource.skill;
-                const type = resource.type;
+                .filter(isRecord)
+                .filter((resource: JsonRecord) => {
+                  const skill = resource.skill;
+                  const type = resource.type;
 
-                return (
-                  typeof skill === "string" &&
-                  weakSkills.includes(skill) &&
-                  isImprovementResourceType(type)
-                );
-              })
-              .map((resource: JsonRecord): ImprovementResource => {
-                const skill =
-                  typeof resource.skill === "string" ? resource.skill : "";
-                const topic =
-                  typeof resource.topic === "string" ? resource.topic : "";
-                const type = isImprovementResourceType(resource.type)
-                  ? resource.type
-                  : "concept";
-                const suggestion =
-                  typeof resource.suggestion === "string"
-                    ? resource.suggestion
-                    : "";
+                  return (
+                    typeof skill === "string" &&
+                    weakSkills.includes(skill) &&
+                    isImprovementResourceType(type)
+                  );
+                })
+                .map((resource: JsonRecord): ImprovementResource => {
+                  const skill =
+                    typeof resource.skill === "string" ? resource.skill : "";
+                  const topic =
+                    typeof resource.topic === "string" ? resource.topic : "";
+                  const type = isImprovementResourceType(resource.type)
+                    ? resource.type
+                    : "concept";
+                  const suggestion =
+                    typeof resource.suggestion === "string"
+                      ? resource.suggestion
+                      : "";
 
-                return {
-                  skill,
-                  topic,
-                  type,
-                  suggestion,
-                };
-              })
-              .slice(0, 4)
+                  return {
+                    skill,
+                    topic,
+                    type,
+                    suggestion,
+                  };
+                })
+                .slice(0, 4)
             : [];
 
           summary = {
@@ -1211,6 +1208,34 @@ CONSTRAINTS:
         );
       });
 
+    supabase.functions
+      .invoke("generate-summary", {
+        body: {
+          assessmentId,
+          resultId: insertedResult.id,
+        },
+      })
+      .catch((err: unknown) => {
+        console.error(
+          "[evaluate][generate-summary]",
+          err instanceof Error ? err.message : String(err),
+        );
+      });
+
+    supabase.functions
+      .invoke("generate-pdf", {
+        body: {
+          assessmentId,
+          resultId: insertedResult.id,
+        },
+      })
+      .catch((err: unknown) => {
+        console.error(
+          "[evaluate][generate-pdf]",
+          err instanceof Error ? err.message : String(err),
+        );
+      });
+
     try {
       const { data: candidate, error: candidateError } = await supabase
         .from("candidates")
@@ -1224,7 +1249,7 @@ CONSTRAINTS:
 
       const candidateName =
         typeof candidate?.full_name === "string" &&
-          candidate.full_name.trim().length > 0
+        candidate.full_name.trim().length > 0
           ? candidate.full_name.trim()
           : "Candidate";
 

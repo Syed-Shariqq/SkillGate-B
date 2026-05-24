@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  SessionTokenError,
+  verifySessionToken,
+} from "../_shared/sessionToken.ts";
 
 type SupabaseClient = ReturnType<typeof createClient>;
 type JsonRecord = Record<string, unknown>;
@@ -40,7 +44,9 @@ function isValidUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
-async function validateRequest(req: Request): Promise<{ resultId: string }> {
+async function validateRequest(
+  req: Request,
+): Promise<{ resultId: string; sessionToken: string }> {
   if (req.method !== "POST") {
     throw new Error("Method not allowed");
   }
@@ -60,7 +66,17 @@ async function validateRequest(req: Request): Promise<{ resultId: string }> {
     throw new Error("resultId must be a valid UUID");
   }
 
-  return { resultId: body.resultId };
+  if (
+    typeof body.sessionToken !== "string" ||
+    !body.sessionToken.trim()
+  ) {
+    throw new Error("sessionToken is required");
+  }
+
+  return {
+    resultId: body.resultId,
+    sessionToken: body.sessionToken,
+  };
 }
 
 function createSupabaseClient(): SupabaseClient {
@@ -83,36 +99,6 @@ function createSupabaseClient(): SupabaseClient {
   });
 }
 
-function createAuthenticatedClient(req: Request): SupabaseClient {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const authorization = req.headers.get("Authorization");
-
-  if (!supabaseUrl) {
-    throw new Error("SUPABASE_URL is not configured");
-  }
-
-  if (!anonKey) {
-    throw new Error("SUPABASE_ANON_KEY is not configured");
-  }
-
-  if (!authorization) {
-    throw new HttpError("Authentication required", 401);
-  }
-
-  return createClient(supabaseUrl, anonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-    global: {
-      headers: {
-        Authorization: authorization,
-      },
-    },
-  });
-}
-
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -123,15 +109,23 @@ serve(async (req: Request) => {
 
   try {
     const payload = await validateRequest(req);
-    const supabase = createSupabaseClient();
-    const authenticatedSupabase = createAuthenticatedClient(req);
 
-    const { data: authData, error: authError } =
-      await authenticatedSupabase.auth.getUser();
+    let token: Awaited<ReturnType<typeof verifySessionToken>>;
 
-    if (authError || !authData.user) {
-      throw new HttpError("Authentication required", 401);
+    try {
+      token = await verifySessionToken(payload.sessionToken);
+    } catch (error) {
+      if (error instanceof SessionTokenError) {
+        return jsonResponse(
+          { error: "Invalid session token" },
+          401,
+        );
+      }
+
+      throw error;
     }
+
+    const supabase = createSupabaseClient();
 
     const { data: result, error: resultError } = await supabase
       .from("results")
@@ -169,26 +163,7 @@ serve(async (req: Request) => {
       return jsonResponse({ error: "Assessment not found" }, 404);
     }
 
-    const userId = authData.user.id;
-    const ownsCandidate = assessment.candidate_id === userId;
-    const ownsRecruiterAssessment = assessment.recruiter_id === userId;
-    let ownsRecruiterJob = false;
-
-    if (!ownsRecruiterAssessment && assessment.job_id) {
-      const { data: job, error: jobError } = await supabase
-        .from("jobs")
-        .select("recruiter_id")
-        .eq("id", assessment.job_id)
-        .maybeSingle<{ recruiter_id: string | null }>();
-
-      if (jobError) {
-        throw new Error(jobError.message);
-      }
-
-      ownsRecruiterJob = job?.recruiter_id === userId;
-    }
-
-    if (!ownsCandidate && !ownsRecruiterAssessment && !ownsRecruiterJob) {
+    if (token.assessmentId !== result.assessment_id) {
       throw new HttpError("Forbidden", 403);
     }
 
@@ -231,6 +206,7 @@ serve(async (req: Request) => {
 
     const isValidationError =
       message.includes("valid UUID") ||
+      message.includes("sessionToken") ||
       message.includes("Malformed JSON") ||
       message.includes("Request body") ||
       message.includes("Method not allowed");

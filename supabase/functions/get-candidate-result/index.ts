@@ -24,6 +24,7 @@ type AssessmentRow = {
 type ResultRow = {
   overall_score: number | string | null;
   feedback_summary: string | null;
+  pdf_storage_path: string | null;
 };
 
 type QuestionRow = {
@@ -185,7 +186,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: result, error: resultError } = await supabase
       .from("results")
-      .select("overall_score,feedback_summary")
+      .select("id,overall_score,feedback_summary,pdf_storage_path")
       .eq("assessment_id", assessmentId)
       .maybeSingle<ResultRow>();
 
@@ -230,6 +231,8 @@ Deno.serve(async (req: Request) => {
       overallScore: toNumber(result.overall_score),
       feedback: result.feedback_summary,
       completedAt: assessment.completed_at,
+      pdfStoragePath: result.pdf_storage_path ?? null,
+      id: result.id,
       questionResults: (questions ?? []).map((question: QuestionRow) => {
         const response = responseByQuestionId.get(question.id);
 
