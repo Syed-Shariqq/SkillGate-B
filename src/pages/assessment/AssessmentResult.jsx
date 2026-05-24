@@ -27,6 +27,34 @@ export default function AssessmentResult() {
   const [expandedQuestions, setExpandedQuestions] = useState(new Set());
   const [retryCount, setRetryCount] = useState(0);
   const [fetching, setFetching] = useState(false);
+  const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
+
+  // Esc Key Close Support
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsRoadmapOpen(false);
+      }
+    };
+    if (isRoadmapOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isRoadmapOpen]);
+
+  // Derived statistics for Roadmap
+  const totalDays = useMemo(() => {
+    return result?.trainingPlan?.length || 0;
+  }, [result]);
+
+  const totalTasks = useMemo(() => {
+    if (!result?.trainingPlan) return 0;
+    return result.trainingPlan.reduce((sum, day) => sum + (day.tasks?.length || 0), 0);
+  }, [result]);
 
   // Initialize session directly during useState setup to avoid cascading render warnings in useEffect
   const [session] = useState(() => {
@@ -691,7 +719,7 @@ export default function AssessmentResult() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => toast("Coming soon")}
+                  onClick={() => setIsRoadmapOpen(true)}
                   className="border border-border-default text-text-primary rounded-lg px-3 py-2 text-xs font-semibold hover:bg-tertiary transition-colors w-full select-none"
                 >
                   Explore Growth Roadmap
@@ -736,6 +764,173 @@ export default function AssessmentResult() {
           &copy; 2024 SkillGate AI. Precision Engineering for Talent.
         </div>
       </footer>
+
+      {/* ROADMAP MODAL */}
+      {isRoadmapOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 overflow-hidden">
+          {/* Blurred dark backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/75 backdrop-blur-md transition-opacity duration-300"
+            onClick={() => setIsRoadmapOpen(false)}
+            aria-hidden="true"
+          />
+          
+          {/* Centered Modal Container */}
+          <div 
+            className="relative w-full max-w-5xl bg-secondary border border-border-default rounded-2xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] transition-all transform scale-100 duration-300 overflow-hidden animate-fade-in-up"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+          >
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-20 bg-secondary border-b border-border-default px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 id="modal-title" className="text-lg md:text-xl font-bold text-text-primary flex items-center gap-2">
+                  <span>Growth Roadmap</span>
+                  <span className="text-[10px] font-mono py-0.5 px-2 bg-accent/15 text-accent rounded-full font-medium">
+                    AI Personalized
+                  </span>
+                </h2>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Step-by-step training plan designed specifically for you
+                </p>
+              </div>
+              
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsRoadmapOpen(false)}
+                className="p-2 text-text-secondary hover:text-text-primary hover:bg-tertiary rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                aria-label="Close modal"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Internal Scrollable Content */}
+            <div className="overflow-y-auto grow p-6 space-y-8 scroll-smooth">
+              {/* Stats Overview */}
+              {result?.trainingPlan && result.trainingPlan.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-tertiary/20 border border-border-default/60 mb-6">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Duration</span>
+                    <p className="text-sm font-bold text-text-primary">{totalDays} Days Plan</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Total Milestones</span>
+                    <p className="text-sm font-bold text-text-primary">{totalTasks} Action Items</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Target Skills</span>
+                    <p className="text-sm font-bold text-text-primary">Customized Growth</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Status</span>
+                    <p className="text-sm font-bold text-success flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-success inline-block animate-pulse" /> Ready to Start
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Roadmap Content */}
+              {!result?.trainingPlan || result.trainingPlan.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                  <div className="bg-tertiary/40 border border-border-default rounded-full p-4 mb-4">
+                    <svg className="w-8 h-8 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-text-primary font-semibold text-lg">Growth roadmap unavailable</h3>
+                  <p className="text-text-secondary text-sm mt-1 max-w-sm">
+                    Your personalized skill development plan is currently being prepared. Check back shortly.
+                  </p>
+                </div>
+              ) : (
+                <div className="relative pl-6 md:pl-10 space-y-12 pb-6">
+                  {/* Vertical Progress Line */}
+                  <div className="absolute left-[11px] md:left-[19px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-accent via-accent/40 to-border-default/20 rounded-full" />
+                  
+                  {result.trainingPlan.map((dayPlan, index) => (
+                    <div key={dayPlan.day || index} className="relative group">
+                      {/* Timeline Bullet */}
+                      <div className="absolute -left-[21px] md:-left-[29px] top-1.5 z-10 flex items-center justify-center">
+                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary border-2 border-accent flex items-center justify-center text-[10px] md:text-xs font-mono font-bold text-accent shadow-lg group-hover:scale-110 transition-transform duration-200">
+                          {dayPlan.day}
+                        </div>
+                      </div>
+                      
+                      {/* Day Content */}
+                      <div className="space-y-4">
+                        {/* Day Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <span className="font-mono text-xs text-accent uppercase font-bold tracking-wider">
+                              DAY {dayPlan.day}
+                            </span>
+                            <h3 className="text-base md:text-lg font-bold text-text-primary mt-0.5">
+                              {dayPlan.focus}
+                            </h3>
+                          </div>
+                          
+                          {/* Progress Pill */}
+                          <div className="inline-flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 rounded-full bg-accent-soft text-[10px] md:text-xs font-mono text-accent font-semibold border border-accent/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                            Active Milestone
+                          </div>
+                        </div>
+                        
+                        {/* Tasks List */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {dayPlan.tasks?.map((task, taskIdx) => (
+                            <div 
+                              key={taskIdx}
+                              className="group/task card-glass hover:bg-tertiary/40 border border-border-default/60 hover:border-accent/40 p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:shadow-[0_4px_20px_rgba(91,109,246,0.08)] transform hover:-translate-y-0.5"
+                            >
+                              <div className="space-y-2">
+                                {/* Badges */}
+                                <div className="flex flex-wrap gap-2 items-center">
+                                  {/* Duration */}
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tertiary text-[10px] md:text-xs font-mono text-text-secondary border border-border-default/60 font-medium">
+                                    <svg className="w-3 h-3 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {task.duration}
+                                  </span>
+                                  
+                                  {/* Resource Label */}
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent/10 text-[10px] md:text-xs font-mono text-accent border border-accent/15 font-medium truncate max-w-[200px]">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                    {task.resource}
+                                  </span>
+                                </div>
+                                
+                                {/* Task Title */}
+                                <h4 className="text-sm md:text-base font-bold text-text-primary group-hover:text-accent transition-colors duration-200">
+                                  {task.title}
+                                </h4>
+                                
+                                {/* Description */}
+                                <p className="text-xs md:text-sm text-text-secondary leading-relaxed">
+                                  {task.description}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,10 +21,24 @@ type AssessmentRow = {
   completed_at: string | null;
 };
 
+type TrainingTask = {
+  title: string;
+  duration: string;
+  resource: string;
+  description: string;
+};
+
+type TrainingDay = {
+  day: number;
+  focus: string;
+  tasks: TrainingTask[];
+};
+
 type ResultRow = {
   overall_score: number | string | null;
   feedback_summary: string | null;
   pdf_storage_path: string | null;
+  training_plan: TrainingDay[] | null;
 };
 
 type QuestionRow = {
@@ -186,7 +200,13 @@ Deno.serve(async (req: Request) => {
 
     const { data: result, error: resultError } = await supabase
       .from("results")
-      .select("id,overall_score,feedback_summary,pdf_storage_path")
+      .select(`
+        id,
+        overall_score,
+        feedback_summary,
+        pdf_storage_path,
+        training_plan
+      `)
       .eq("assessment_id", assessmentId)
       .maybeSingle<ResultRow>();
 
@@ -233,6 +253,7 @@ Deno.serve(async (req: Request) => {
       completedAt: assessment.completed_at,
       pdfStoragePath: result.pdf_storage_path ?? null,
       id: result.id,
+      trainingPlan: result.training_plan ?? [],
       questionResults: (questions ?? []).map((question: QuestionRow) => {
         const response = responseByQuestionId.get(question.id);
 
