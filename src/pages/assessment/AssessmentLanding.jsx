@@ -135,6 +135,8 @@ export default function AssessmentLanding() {
     return true;
   }, []);
 
+  console.log('Submit triggered', { name, email, token })
+
   // Input Change Handlers
   const handleNameChange = (e) => {
     const val = e.target.value;

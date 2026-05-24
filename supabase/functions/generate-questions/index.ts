@@ -80,9 +80,14 @@ async function readRequestBody(req: Request): Promise<JsonRecord | null> {
 function normalizeSkills(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
-      .filter((skill): skill is string => typeof skill === 'string')
-      .map((skill) => skill.trim())
-      .filter((skill) => skill.length > 0)
+      .map((skill) => {
+        if (typeof skill === 'string') return skill.trim()
+        if (typeof skill === 'object' && skill !== null && typeof (skill as Record<string, unknown>).name === 'string') {
+          return ((skill as Record<string, unknown>).name as string).trim()
+        }
+        return null
+      })
+      .filter((skill): skill is string => typeof skill === 'string' && skill.length > 0)
   }
 
   if (typeof value === 'string') {

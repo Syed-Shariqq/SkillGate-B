@@ -1,164 +1,178 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
-import { useAssessmentTimer } from '../../../hooks/useAssessmentTimer'
-import { useAntiCheat } from '../../../hooks/useAntiCheat'
+import { useAssessmentTimer } from "../../../hooks/useAssessmentTimer";
+import { useAntiCheat } from "../../../hooks/useAntiCheat";
 
 import {
   getSessionFromStorage,
   getAssessment,
   markStarted,
-  clearSession
-} from '../../../services/assessment/assessmentService'
+} from "../../../services/assessment/assessmentService";
 
 import {
   saveResponse,
-  submitAssessment
-} from '../../../services/assessment/responseService'
+  submitAssessment,
+} from "../../../services/assessment/responseService";
 
-import ProgressDots from '../../../components/assessment/ProgressDots'
+import ProgressDots from "../../../components/assessment/ProgressDots";
 
-import AssessmentHeader from './AssessmentHeader'
-import NavigationControls from './NavigationControls'
-import QuestionContainer from './QuestionContainer'
+import AssessmentHeader from "./AssessmentHeader";
+import NavigationControls from "./NavigationControls";
+import QuestionContainer from "./QuestionContainer";
 
-import toast from 'react-hot-toast'
+import toast from "react-hot-toast";
 
 export default function AssessmentPage() {
-  const { token } = useParams()
-  const navigate = useNavigate()
+  const { token } = useParams();
+  const navigate = useNavigate();
 
   // State
-  const [questions, setQuestions] = useState([])
-  const [answers, setAnswers] = useState({})
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showSubmitModal, setShowSubmitModal] = useState(false)
-  const [showWarningModal, setShowWarningModal] = useState(false)
-  const [isAutosaving, setIsAutosaving] = useState(false)
-  const [lastSavedAt, setLastSavedAt] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState(null)
-  const [flaggedQuestions, setFlaggedQuestions] = useState(new Set())
-  const [assessmentData, setAssessmentData] = useState(null)
-  const [session, setSession] = useState(null)
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [isAutosaving, setIsAutosaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
+  const [assessmentData, setAssessmentData] = useState(null);
+  const [session, setSession] = useState(null);
 
   // Refs
-  const mountedRef = useRef(true)
-  const autosaveIntervalRef = useRef(null)
-  const debounceSaveRef = useRef(null)
-  const latestAnswersRef = useRef({})
-  const saveVersionRef = useRef(0)
-  const pendingSubmitRef = useRef(false)
+  const mountedRef = useRef(true);
+  const autosaveIntervalRef = useRef(null);
+  const debounceSaveRef = useRef(null);
+  const latestAnswersRef = useRef({});
+  const saveVersionRef = useRef(0);
+  const pendingSubmitRef = useRef(false);
 
   // Avoid stale closures in timers and intervals
-  const currentIndexRef = useRef(0)
-  const flaggedQuestionsRef = useRef(new Set())
+  const currentIndexRef = useRef(0);
+  const flaggedQuestionsRef = useRef(new Set());
 
   useEffect(() => {
-    currentIndexRef.current = currentIndex
-  }, [currentIndex])
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   useEffect(() => {
-    flaggedQuestionsRef.current = flaggedQuestions
-  }, [flaggedQuestions])
+    flaggedQuestionsRef.current = flaggedQuestions;
+  }, [flaggedQuestions]);
 
   // Anti-Cheat Integration
   const antiCheat = useAntiCheat({
     assessmentId: session?.assessmentId,
-    enabled: Boolean(session?.assessmentId && !isLoading)
-  })
+    enabled: Boolean(session?.assessmentId && !isLoading),
+  });
 
   // Local Storage Save Behavior
-  const saveToLocalStorage = useCallback((currentAnswers, index, flags) => {
-    if (!session?.assessmentId) return
+  const saveToLocalStorage = useCallback(
+    (currentAnswers, index, flags) => {
+      if (!session?.assessmentId) return;
 
-    setIsAutosaving(true)
+      setIsAutosaving(true);
 
-    localStorage.setItem(`skillgate_answers_${session.assessmentId}`, JSON.stringify(currentAnswers))
-    localStorage.setItem(`skillgate_index_${session.assessmentId}`, String(index))
-    localStorage.setItem(`skillgate_flags_${session.assessmentId}`, JSON.stringify(Array.from(flags)))
+      localStorage.setItem(
+        `skillgate_answers_${session.assessmentId}`,
+        JSON.stringify(currentAnswers),
+      );
+      localStorage.setItem(
+        `skillgate_index_${session.assessmentId}`,
+        String(index),
+      );
+      localStorage.setItem(
+        `skillgate_flags_${session.assessmentId}`,
+        JSON.stringify(Array.from(flags)),
+      );
 
-    setLastSavedAt(new Date())
+      setLastSavedAt(new Date());
 
-    setTimeout(() => {
-      if (mountedRef.current) {
-        setIsAutosaving(false)
-      }
-    }, 800)
-  }, [session])
+      setTimeout(() => {
+        if (mountedRef.current) {
+          setIsAutosaving(false);
+        }
+      }, 800);
+    },
+    [session],
+  );
 
   // Save Response to Backend
-  const triggerSaveResponse = useCallback((questionId, val) => {
-    if (!session?.assessmentId) return
+  const triggerSaveResponse = useCallback(
+    (questionId, val) => {
+      if (!session?.assessmentId) return;
 
-    saveVersionRef.current += 1
-    const currentVersion = saveVersionRef.current
+      saveVersionRef.current += 1;
+      const currentVersion = saveVersionRef.current;
 
-    const executeSave = async (isRetry = false) => {
-      if (!mountedRef.current || currentVersion < saveVersionRef.current) return
+      const executeSave = async (isRetry = false) => {
+        if (!mountedRef.current || currentVersion < saveVersionRef.current)
+          return;
 
-      const { error } = await saveResponse({
-        assessmentId: session.assessmentId,
-        questionId,
-        answer: val ?? '',
-        timeTaken: 0
-      })
+        const { error } = await saveResponse({
+          assessmentId: session.assessmentId,
+          questionId,
+          answer: val ?? "",
+          timeTaken: 0,
+        });
 
-      if (!mountedRef.current || currentVersion < saveVersionRef.current) return
+        if (!mountedRef.current || currentVersion < saveVersionRef.current)
+          return;
 
-      if (error) {
-        if (!isRetry) {
-          setTimeout(() => {
-            executeSave(true)
-          }, 2000)
+        if (error) {
+          if (!isRetry) {
+            setTimeout(() => {
+              executeSave(true);
+            }, 2000);
+          }
         }
-      }
-    }
+      };
 
-    executeSave(false)
-  }, [session])
+      executeSave(false);
+    },
+    [session],
+  );
 
   // Do Submit Action
   const doSubmit = useCallback(async () => {
-    if (!session?.assessmentId) return
+    if (!session?.assessmentId) return;
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     const { error } = await submitAssessment({
       assessmentId: session.assessmentId,
-      sessionToken: session.sessionToken
-    })
+      sessionToken: session.sessionToken,
+    });
 
-    if (!mountedRef.current) return
+    if (!mountedRef.current) return;
 
     if (error) {
-      toast.error(error.message || 'Failed to submit assessment')
-      setIsSubmitting(false)
-      pendingSubmitRef.current = false
-      return
+      toast.error(error.message || "Failed to submit assessment");
+      setIsSubmitting(false);
+      pendingSubmitRef.current = false;
+      return;
     }
 
-    // Success! Clear session and localStorage
-    clearSession()
-    localStorage.removeItem(`skillgate_answers_${session.assessmentId}`)
-    localStorage.removeItem(`skillgate_index_${session.assessmentId}`)
-    localStorage.removeItem(`skillgate_flags_${session.assessmentId}`)
+    localStorage.removeItem(`skillgate_answers_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_index_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_flags_${session.assessmentId}`);
 
-    navigate(`/assess/${token}/submitted`, { replace: true })
-  }, [session, token, navigate])
+    navigate(`/assess/${token}/submitted`, { replace: true });
+  }, [session, token, navigate]);
 
   // Auto Submit Callback
   const handleAutoSubmit = useCallback(async () => {
-    if (pendingSubmitRef.current) return
-    pendingSubmitRef.current = true
+    if (pendingSubmitRef.current) return;
+    pendingSubmitRef.current = true;
 
     toast("Time's up — submitting automatically", {
-      duration: 4000
-    })
+      duration: 4000,
+    });
 
-    await doSubmit()
-  }, [doSubmit])
+    await doSubmit();
+  }, [doSubmit]);
 
   // Timer Initialization
   const timer = useAssessmentTimer({
@@ -166,285 +180,304 @@ export default function AssessmentPage() {
     timeLimitMinutes: assessmentData?.job?.time_limit_minutes ?? 45,
     onExpire: handleAutoSubmit,
     onWarning: useCallback(() => {
-      setShowWarningModal(true)
-    }, [])
-  })
+      setShowWarningModal(true);
+    }, []),
+  });
 
   // Answer Change Handler
-  const handleAnswer = useCallback((questionId, answer) => {
-    setAnswers((prev) => {
-      const next = {
-        ...prev,
-        [questionId]: answer
+  const handleAnswer = useCallback(
+    (questionId, answer) => {
+      setAnswers((prev) => {
+        const next = {
+          ...prev,
+          [questionId]: answer,
+        };
+        latestAnswersRef.current = next;
+        return next;
+      });
+
+      // Trigger Save Response to backend
+      triggerSaveResponse(questionId, answer);
+
+      // Trigger Debounced save to Local Storage
+      if (debounceSaveRef.current) {
+        clearTimeout(debounceSaveRef.current);
       }
-      latestAnswersRef.current = next
-      return next
-    })
 
-    // Trigger Save Response to backend
-    triggerSaveResponse(questionId, answer)
-
-    // Trigger Debounced save to Local Storage
-    if (debounceSaveRef.current) {
-      clearTimeout(debounceSaveRef.current)
-    }
-
-    debounceSaveRef.current = setTimeout(() => {
-      saveToLocalStorage(
-        latestAnswersRef.current,
-        currentIndexRef.current,
-        flaggedQuestionsRef.current
-      )
-    }, 2000)
-  }, [triggerSaveResponse, saveToLocalStorage])
+      debounceSaveRef.current = setTimeout(() => {
+        saveToLocalStorage(
+          latestAnswersRef.current,
+          currentIndexRef.current,
+          flaggedQuestionsRef.current,
+        );
+      }, 2000);
+    },
+    [triggerSaveResponse, saveToLocalStorage],
+  );
 
   // Flag Toggle Handler
   const handleFlag = useCallback(() => {
-    const currentQuestion = questions[currentIndexRef.current]
-    if (!currentQuestion?.id) return
+    const currentQuestion = questions[currentIndexRef.current];
+    if (!currentQuestion?.id) return;
 
     setFlaggedQuestions((prev) => {
-      const next = new Set(prev)
+      const next = new Set(prev);
       if (next.has(currentQuestion.id)) {
-        next.delete(currentQuestion.id)
+        next.delete(currentQuestion.id);
       } else {
-        next.add(currentQuestion.id)
+        next.add(currentQuestion.id);
       }
-      return next
-    })
-  }, [questions])
+      return next;
+    });
+  }, [questions]);
 
   // Unanswered Count useMemo
   const unansweredCount = useMemo(() => {
-    let count = 0
+    let count = 0;
     questions.forEach((q) => {
-      const value = answers[q.id]
-      if (String(value ?? '').trim().length === 0) {
-        count++
+      const value = answers[q.id];
+      if (String(value ?? "").trim().length === 0) {
+        count++;
       }
-    })
-    return count
-  }, [questions, answers])
+    });
+    return count;
+  }, [questions, answers]);
 
   // Submit Flow Handler
   const handleSubmit = useCallback(() => {
-    if (pendingSubmitRef.current) return
+    if (pendingSubmitRef.current) return;
 
     if (unansweredCount > 0) {
-      setShowSubmitModal(true)
+      setShowSubmitModal(true);
     } else {
-      pendingSubmitRef.current = true
-      doSubmit()
+      pendingSubmitRef.current = true;
+      doSubmit();
     }
-  }, [unansweredCount, doSubmit])
+  }, [unansweredCount, doSubmit]);
 
   const handleSubmitAnyway = useCallback(() => {
-    setShowSubmitModal(false)
-    if (pendingSubmitRef.current) return
-    pendingSubmitRef.current = true
-    doSubmit()
-  }, [doSubmit])
+    setShowSubmitModal(false);
+    if (pendingSubmitRef.current) return;
+    pendingSubmitRef.current = true;
+    doSubmit();
+  }, [doSubmit]);
 
   // Mount Flow
   useEffect(() => {
-    mountedRef.current = true
+    mountedRef.current = true;
 
     const initializeAssessment = async () => {
       try {
         // Read session
-        const { data: sessionData } = getSessionFromStorage()
+        const { data: sessionData } = getSessionFromStorage();
         if (!sessionData?.assessmentId || !sessionData?.sessionToken) {
-          navigate(`/assess/${token}`, { replace: true })
-          return
+          navigate(`/assess/${token}`, { replace: true });
+          return;
         }
 
-        setSession(sessionData)
-        const { assessmentId, sessionToken } = sessionData
+        setSession(sessionData);
+        const { assessmentId, sessionToken } = sessionData;
 
         // Fetch assessment
-        const res = await getAssessment({ assessmentId, sessionToken })
-        if (!mountedRef.current) return
+        const res = await getAssessment({ assessmentId, sessionToken });
+        if (!mountedRef.current) return;
 
         if (res.error || !res.data) {
-          navigate(`/assess/${token}`, { replace: true })
-          return
+          navigate(`/assess/${token}`, { replace: true });
+          return;
         }
 
-        const { assessment, questions: rawQuestions } = res.data
+        const { assessment, questions: rawQuestions } = res.data;
 
         // Validate status and redirect if necessary
-        const status = assessment?.status
-        if (status === 'submitted' || status === 'completed' || status === 'evaluating') {
-          navigate(`/assess/${token}/submitted`, { replace: true })
-          return
+        const status = assessment?.status;
+        if (
+          status === "submitted" ||
+          status === "completed" ||
+          status === "evaluating"
+        ) {
+          navigate(`/assess/${token}/submitted`, { replace: true });
+          return;
         }
 
-        setAssessmentData(assessment)
+        setAssessmentData(assessment);
 
         // Sort questions by order_index ascending
         const sortedQuestions = [...(rawQuestions || [])].sort((a, b) => {
-          const orderA = a.order_index ?? 0
-          const orderB = b.order_index ?? 0
-          return orderA - orderB
-        })
-        setQuestions(sortedQuestions)
+          const orderA = a.order_index ?? 0;
+          const orderB = b.order_index ?? 0;
+          return orderA - orderB;
+        });
+        setQuestions(sortedQuestions);
 
         // Restore Local Storage persistence
         // Answers
-        let restoredAnswers = {}
-        const rawStoredAnswers = localStorage.getItem(`skillgate_answers_${assessmentId}`)
+        let restoredAnswers = {};
+        const rawStoredAnswers = localStorage.getItem(
+          `skillgate_answers_${assessmentId}`,
+        );
         if (rawStoredAnswers) {
           try {
-            const parsed = JSON.parse(rawStoredAnswers)
-            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-              const filtered = {}
+            const parsed = JSON.parse(rawStoredAnswers);
+            if (
+              parsed &&
+              typeof parsed === "object" &&
+              !Array.isArray(parsed)
+            ) {
+              const filtered = {};
               for (const [qId, val] of Object.entries(parsed)) {
-                if (typeof val === 'string' || val === null) {
-                  filtered[qId] = val
+                if (typeof val === "string" || val === null) {
+                  filtered[qId] = val;
                 }
               }
-              restoredAnswers = filtered
+              restoredAnswers = filtered;
             }
           } catch {
             // ignore safely
           }
         }
-        setAnswers(restoredAnswers)
-        latestAnswersRef.current = restoredAnswers
+        setAnswers(restoredAnswers);
+        latestAnswersRef.current = restoredAnswers;
 
         // Index
-        let restoredIndex = 0
-        const rawStoredIndex = localStorage.getItem(`skillgate_index_${assessmentId}`)
+        let restoredIndex = 0;
+        const rawStoredIndex = localStorage.getItem(
+          `skillgate_index_${assessmentId}`,
+        );
         if (rawStoredIndex) {
-          const parsed = Number(rawStoredIndex)
+          const parsed = Number(rawStoredIndex);
           if (Number.isFinite(parsed)) {
-            const maxIdx = Math.max(0, sortedQuestions.length - 1)
-            restoredIndex = Math.min(Math.max(0, parsed), maxIdx)
+            const maxIdx = Math.max(0, sortedQuestions.length - 1);
+            restoredIndex = Math.min(Math.max(0, parsed), maxIdx);
           }
         }
-        setCurrentIndex(restoredIndex)
+        setCurrentIndex(restoredIndex);
 
         // Flags
-        let restoredFlags = new Set()
-        const rawStoredFlags = localStorage.getItem(`skillgate_flags_${assessmentId}`)
+        let restoredFlags = new Set();
+        const rawStoredFlags = localStorage.getItem(
+          `skillgate_flags_${assessmentId}`,
+        );
         if (rawStoredFlags) {
           try {
-            const parsed = JSON.parse(rawStoredFlags)
+            const parsed = JSON.parse(rawStoredFlags);
             if (Array.isArray(parsed)) {
-              restoredFlags = new Set(parsed.filter(item => typeof item === 'string'))
+              restoredFlags = new Set(
+                parsed.filter((item) => typeof item === "string"),
+              );
             }
           } catch {
             // ignore safely
           }
         }
-        setFlaggedQuestions(restoredFlags)
+        setFlaggedQuestions(restoredFlags);
 
         // Mark started if status is ready
-        if (status === 'ready') {
-          markStarted(assessmentId, sessionToken)
+        if (status === "ready") {
+          markStarted(assessmentId, sessionToken);
         }
 
         // Handle Polling if started_at is null
         if (!assessment?.started_at) {
-          let elapsedPollTime = 0
+          let elapsedPollTime = 0;
           const pollInterval = setInterval(async () => {
-            elapsedPollTime += 2000
+            elapsedPollTime += 2000;
             if (elapsedPollTime >= 10000) {
-              clearInterval(pollInterval)
+              clearInterval(pollInterval);
               if (mountedRef.current) {
-                setIsLoading(false)
+                setIsLoading(false);
               }
-              return
+              return;
             }
 
-            const pollRes = await getAssessment({ assessmentId, sessionToken })
+            const pollRes = await getAssessment({ assessmentId, sessionToken });
             if (!mountedRef.current) {
-              clearInterval(pollInterval)
-              return
+              clearInterval(pollInterval);
+              return;
             }
 
             if (pollRes.data?.assessment?.started_at) {
-              setAssessmentData(pollRes.data.assessment)
-              clearInterval(pollInterval)
-              setIsLoading(false)
+              setAssessmentData(pollRes.data.assessment);
+              clearInterval(pollInterval);
+              setIsLoading(false);
             }
-          }, 2000)
+          }, 2000);
         } else {
-          setIsLoading(false)
+          setIsLoading(false);
         }
       } catch (err) {
-        if (!mountedRef.current) return
-        setLoadError(err?.message || 'Failed to load assessment')
-        setIsLoading(false)
+        if (!mountedRef.current) return;
+        setLoadError(err?.message || "Failed to load assessment");
+        setIsLoading(false);
       }
-    }
+    };
 
-    initializeAssessment()
+    initializeAssessment();
 
     return () => {
-      mountedRef.current = false
-    }
-  }, [token, navigate])
+      mountedRef.current = false;
+    };
+  }, [token, navigate]);
 
   // Cleanup timers, intervals, and anti-cheat beforeunload on unmount
   useEffect(() => {
     return () => {
       if (autosaveIntervalRef.current) {
-        clearInterval(autosaveIntervalRef.current)
+        clearInterval(autosaveIntervalRef.current);
       }
       if (debounceSaveRef.current) {
-        clearTimeout(debounceSaveRef.current)
+        clearTimeout(debounceSaveRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   // Periodic Save (30000ms interval)
   useEffect(() => {
-    if (!session?.assessmentId) return
+    if (!session?.assessmentId) return;
 
     const intervalId = setInterval(() => {
       saveToLocalStorage(
         latestAnswersRef.current,
         currentIndexRef.current,
-        flaggedQuestionsRef.current
-      )
-    }, 30000)
+        flaggedQuestionsRef.current,
+      );
+    }, 30000);
 
-    autosaveIntervalRef.current = intervalId
+    autosaveIntervalRef.current = intervalId;
 
     return () => {
-      clearInterval(intervalId)
-    }
-  }, [session, saveToLocalStorage])
+      clearInterval(intervalId);
+    };
+  }, [session, saveToLocalStorage]);
 
   // BeforeUnload Protection while assessment active
   useEffect(() => {
-    if (isLoading || isSubmitting || !session?.assessmentId) return
+    if (isLoading || isSubmitting || !session?.assessmentId) return;
 
     const handleBeforeUnload = (e) => {
-      const msg = 'Your assessment is still in progress.'
-      e.returnValue = msg
-      return msg
-    }
+      const msg = "Your assessment is still in progress.";
+      e.returnValue = msg;
+      return msg;
+    };
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [isLoading, isSubmitting, session])
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isLoading, isSubmitting, session]);
 
   // Derived Collections
   const currentQuestion = useMemo(() => {
-    return questions[currentIndex] ?? null
-  }, [questions, currentIndex])
+    return questions[currentIndex] ?? null;
+  }, [questions, currentIndex]);
 
   const questionsWithFlags = useMemo(() => {
     return questions.map((q) => ({
       ...q,
-      flagged: flaggedQuestions.has(q.id)
-    }))
-  }, [questions, flaggedQuestions])
+      flagged: flaggedQuestions.has(q.id),
+    }));
+  }, [questions, flaggedQuestions]);
 
   // Loading State
   if (isLoading) {
@@ -475,7 +508,7 @@ export default function AssessmentPage() {
           Loading assessment...
         </p>
       </div>
-    )
+    );
   }
 
   // Error State
@@ -495,7 +528,9 @@ export default function AssessmentPage() {
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <h2 className="text-xl font-bold text-text-primary mb-2">Error Loading Assessment</h2>
+          <h2 className="text-xl font-bold text-text-primary mb-2">
+            Error Loading Assessment
+          </h2>
           <p className="text-error text-sm mb-6">{loadError}</p>
           <button
             type="button"
@@ -506,7 +541,7 @@ export default function AssessmentPage() {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   // Empty Questions State
@@ -522,11 +557,18 @@ export default function AssessmentPage() {
             stroke="currentColor"
             className="w-12 h-12 text-text-tertiary mx-auto mb-4"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 4h.01" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 4h.01"
+            />
           </svg>
-          <h2 className="text-xl font-bold text-text-primary mb-2">No Questions Found</h2>
+          <h2 className="text-xl font-bold text-text-primary mb-2">
+            No Questions Found
+          </h2>
           <p className="text-text-secondary text-sm mb-6">
-            This assessment does not contain any questions. Please contact your recruiter.
+            This assessment does not contain any questions. Please contact your
+            recruiter.
           </p>
           <button
             type="button"
@@ -537,7 +579,7 @@ export default function AssessmentPage() {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -557,7 +599,7 @@ export default function AssessmentPage() {
         {/* Left Sidebar (Desktop Only) */}
         <aside className="hidden md:flex flex-col w-44 md:w-52 shrink-0 bg-secondary border-r border-border-default h-full overflow-hidden">
           <ProgressDots
-            title={assessmentData?.job?.title ?? 'Assessment'}
+            title={assessmentData?.job?.title ?? "Assessment"}
             questions={questionsWithFlags}
             answers={answers}
             currentIndex={currentIndex}
@@ -591,7 +633,9 @@ export default function AssessmentPage() {
         isFlagged={flaggedQuestions.has(currentQuestion?.id)}
         isSubmitting={isSubmitting}
         onPrevious={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-        onNext={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))}
+        onNext={() =>
+          setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))
+        }
         onFlag={handleFlag}
         onSubmit={handleSubmit}
       />
@@ -621,11 +665,14 @@ export default function AssessmentPage() {
             </svg>
 
             {/* Heading */}
-            <h2 className="text-text-primary text-lg font-bold mb-2">Unanswered Questions</h2>
+            <h2 className="text-text-primary text-lg font-bold mb-2">
+              Unanswered Questions
+            </h2>
 
             {/* Body */}
             <p className="text-text-secondary text-sm mb-6 leading-relaxed">
-              You have {unansweredCount} unanswered question(s). Are you sure you want to submit?
+              You have {unansweredCount} unanswered question(s). Are you sure
+              you want to submit?
             </p>
 
             {/* Button Row */}
@@ -649,5 +696,5 @@ export default function AssessmentPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
