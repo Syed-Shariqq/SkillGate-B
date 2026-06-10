@@ -491,7 +491,7 @@ const TrustStrip = () => {
                 <CountUp end={stat.value} suffix={stat.suffix} />
               </span>
 
-              <span className="relative max-w-[180px] text-sm text-text-tertiary leading-relaxed">
+              <span className="relative max-w-45 text-sm text-text-tertiary leading-relaxed">
                 {stat.label}
               </span>
             </div>
@@ -657,7 +657,7 @@ const HowItWorks = () => {
                 <h3 className="text-base font-bold text-text-primary md:mt-5 md:text-center">
                   {step.title}
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-text-secondary md:mx-auto md:max-w-[160px] md:text-center">
+                <p className="mt-2 text-sm leading-6 text-text-secondary md:mx-auto md:max-w-40 md:text-center">
                   {step.text}
                 </p>
               </div>
@@ -1073,7 +1073,7 @@ const FinalCTA = () => (
           backgroundSize: "28px 28px",
         }}
       />
-      <div className="absolute left-1/2 top-0 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]" />
+      <div className="absolute left-1/2 top-0 h-125 w-125 -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]" />
     </div>
     <FadeIn className="relative z-10 mx-auto max-w-7xl">
       <div className="mx-auto max-w-3xl text-center">

@@ -614,7 +614,7 @@ export default function AssessmentResult() {
                   >
                     {/* Left Info */}
                     <div className="flex items-center min-w-0 mr-3">
-                      <span className="bg-tertiary text-text-tertiary font-mono text-xs px-2 py-0.5 rounded mr-3 flex-shrink-0 select-none">
+                      <span className="bg-tertiary text-text-tertiary font-mono text-xs px-2 py-0.5 rounded mr-3 shrink-0 select-none">
                         Q{idx + 1}
                       </span>
                       <span className="text-text-primary text-sm font-medium truncate">
@@ -623,7 +623,7 @@ export default function AssessmentResult() {
                     </div>
 
                     {/* Right Badges & Chevron */}
-                    <div className="flex items-center gap-3 flex-shrink-0 select-none">
+                    <div className="flex items-center gap-3 shrink-0 select-none">
                       <span className="bg-accent/15 text-accent font-mono text-xs px-2 py-0.5 rounded">
                         {scoreBadge}
                       </span>
@@ -851,12 +851,12 @@ export default function AssessmentResult() {
               ) : (
                 <div className="relative pl-6 md:pl-10 space-y-12 pb-6">
                   {/* Vertical Progress Line */}
-                  <div className="absolute left-[11px] md:left-[19px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-accent via-accent/40 to-border-default/20 rounded-full" />
+                  <div className="absolute left-2.75 md:left-4.75 top-4 bottom-4 w-0.5 bg-linear-to-b from-accent via-accent/40 to-border-default/20 rounded-full" />
                   
                   {result.trainingPlan.map((dayPlan, index) => (
                     <div key={dayPlan.day || index} className="relative group">
                       {/* Timeline Bullet */}
-                      <div className="absolute -left-[21px] md:-left-[29px] top-1.5 z-10 flex items-center justify-center">
+                      <div className="absolute -left-5.25 md:-left-7.25 top-1.5 z-10 flex items-center justify-center">
                         <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary border-2 border-accent flex items-center justify-center text-[10px] md:text-xs font-mono font-bold text-accent shadow-lg group-hover:scale-110 transition-transform duration-200">
                           {dayPlan.day}
                         </div>
@@ -901,7 +901,7 @@ export default function AssessmentResult() {
                                   </span>
                                   
                                   {/* Resource Label */}
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent/10 text-[10px] md:text-xs font-mono text-accent border border-accent/15 font-medium truncate max-w-[200px]">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent/10 text-[10px] md:text-xs font-mono text-accent border border-accent/15 font-medium truncate max-w-50">
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                     </svg>
