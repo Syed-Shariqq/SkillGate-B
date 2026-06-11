@@ -28,6 +28,7 @@ import AssessmentAlreadyTaken from "./pages/assessment/AssessmentAlreadyTaken";
 import AssessmentLanding from "./pages/assessment/AssessmentLanding";
 import AssessmentPage from "./pages/assessment/AssessmentPage";
 import AssessmentSubmitted from "./pages/assessment/AssessmentSubmitted";
+import RecruiterLayout from "./layouts/RecruiterLayout";
 
 const App = () => {
 
