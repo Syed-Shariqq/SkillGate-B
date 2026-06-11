@@ -1,18 +1,13 @@
-import { useEffect } from "react";
 import { useAuth } from "../../../hooks/useAuth";
-import { supabase } from "../../../config/supabase";
+import OnboardingChecklist from "../../../components/recruiter/OnboardingChecklist";
 
 const RecruiterDashboard = () => {
   const { logout } = useAuth();
 
- useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    console.log(data.session?.access_token)
-  })
-}, [])
-
   return (
-    <div>
+    <div className="space-y-6">
+      <OnboardingChecklist />
+
       <button className="text-white" onClick={logout}>
         Logout
       </button>
