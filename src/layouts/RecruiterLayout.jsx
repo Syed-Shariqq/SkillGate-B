@@ -121,7 +121,7 @@ const Sidebar = ({
       <button
         type="button"
         onClick={() => {
-          navigate("/recruiter/dashboard");
+          navigate("/dashboard");
           onNavigate?.();
         }}
         className="font-sans text-xl font-semibold text-text-primary"
@@ -132,7 +132,7 @@ const Sidebar = ({
       <button
         type="button"
         onClick={() => {
-          navigate("/recruiter/create-job");
+          navigate("/jobs/create");
           onNavigate?.();
         }}
         className="mt-6 w-full rounded bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
@@ -264,7 +264,7 @@ const RecruiterLayout = ({ children }) => {
   const quotaPercent = useMemo(() => {
     const usage = user?.id ? quotaUsage : null;
     const used = Number(usage?.assessments_used || 0);
-    const limit = Number(usage?.plan_limit || 0);
+    const limit = Number(usage?.assessments_limit || 0);
 
     if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) {
       return 0;
