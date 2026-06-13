@@ -21,6 +21,7 @@ import JobCreatedSuccess from "./pages/recruiter/jobs/JobCreatedSuccess";
 import CandidateProfile from "./pages/recruiter/candidates/CandidateProfile";
 import RecruiterAnalytics from "./pages/recruiter/analytics/RecruiterAnalytics";
 import BillingPage from "./pages/recruiter/billing/BillingPage";
+import PlansPage from "./pages/recruiter/billing/PlansPage";
 import RecruiterSettings from "./pages/recruiter/settings/RecruiterSettings";
 import AllJobs from "./pages/recruiter/jobs/AllJobs";
 
@@ -79,6 +80,7 @@ const App = () => {
             <Route path="/candidates/:candidateId" element={<RecruiterLayout><CandidateProfile /></RecruiterLayout>} />
             <Route path="/analytics" element={<RecruiterLayout><RecruiterAnalytics /></RecruiterLayout>} />
             <Route path="/billing" element={<RecruiterLayout><BillingPage /></RecruiterLayout>} />
+            <Route path="/billing/plans" element={<RecruiterLayout><PlansPage /></RecruiterLayout>} />
             <Route path="/jobs" element={<RecruiterLayout><AllJobs /></RecruiterLayout>} />
             <Route path="/settings" element={<RecruiterLayout><RecruiterSettings /></RecruiterLayout>} />
           </Route>
