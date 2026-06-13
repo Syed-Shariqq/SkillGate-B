@@ -17,6 +17,7 @@ import AssessmentResult from "./pages/assessment/AssessmentResult";
 import CreateJob from "./pages/recruiter/jobs/CreateJob";
 import JobDetail from "./pages/recruiter/jobs/JobDetail";
 import JobSettings from "./pages/recruiter/jobs/JobSettings";
+import JobCreatedSuccess from "./pages/recruiter/jobs/JobCreatedSuccess";
 import CandidateProfile from "./pages/recruiter/candidates/CandidateProfile";
 import RecruiterAnalytics from "./pages/recruiter/analytics/RecruiterAnalytics";
 import BillingPage from "./pages/recruiter/billing/BillingPage";
@@ -72,6 +73,7 @@ const App = () => {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<RecruiterLayout><RecruiterDashboard /></RecruiterLayout>} />
             <Route path="/jobs/create" element={<RecruiterLayout><CreateJob /></RecruiterLayout>} />
+            <Route path="/jobs/:jobId/success" element={<RecruiterLayout><JobCreatedSuccess /></RecruiterLayout>} />
             <Route path="/jobs/:jobId" element={<RecruiterLayout><JobDetail /></RecruiterLayout>} />
             <Route path="/jobs/:jobId/settings" element={<RecruiterLayout><JobSettings /></RecruiterLayout>} />
             <Route path="/candidates/:candidateId" element={<RecruiterLayout><CandidateProfile /></RecruiterLayout>} />

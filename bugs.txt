@@ -1,0 +1,6 @@
+Bug 01:
+Could not evaluate response for text based questions due so parse error from logs in evaluate response edge function
+
+Bug 02:
+Sometimes the pages just stop at loading state many times 
+

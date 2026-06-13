@@ -330,6 +330,7 @@ No code fences.`;
       console.error("[evaluate][ai]", aiResult.error ?? "AI evaluation failed");
       return fallbackEvaluation();
     }
+    console.log("[evaluate][raw-ai-response]", aiResult.data);
 
     const parsed = parseJSON(aiResult.data);
 
