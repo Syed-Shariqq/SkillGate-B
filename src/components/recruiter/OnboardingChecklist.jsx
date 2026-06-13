@@ -1,7 +1,10 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthContext from "../../context/AuthContext";
-import { supabase } from "../../lib/supabase";
+import {
+  getOnboardingStatus,
+  markOnboardingComplete,
+} from "../../services/dashboardService";
 import SkeletonCard from "../ui/SkeletonCard";
 
 const STEP_COUNT = 3;
@@ -84,13 +87,17 @@ const OnboardingChecklist = () => {
     const loadCompletionState = async () => {
       setLoading(true);
 
-      const onboardingResult = await supabase
-        .from("recruiter_profiles")
-        .select("onboarding_complete")
-        .eq("id", recruiterId)
-        .maybeSingle();
+      const onboardingStatusResult = await getOnboardingStatus(recruiterId);
 
       if (!isMounted) return;
+
+      if (onboardingStatusResult.error) {
+        console.error("Onboarding status fetch error:", onboardingStatusResult.error);
+        setLoading(false);
+        return;
+      }
+
+      const { onboardingResult, profileResult, jobsResult } = onboardingStatusResult.data || {};
 
       if (onboardingResult.error) {
         console.error("Onboarding status fetch error:", onboardingResult.error);
@@ -101,20 +108,6 @@ const OnboardingChecklist = () => {
         setLoading(false);
         return;
       }
-
-      const [profileResult, jobsResult] = await Promise.all([
-        supabase
-          .from("recruiter_profiles")
-          .select("company_name, company_website")
-          .eq("id", recruiterId)
-          .maybeSingle(),
-        supabase
-          .from("jobs")
-          .select("id", { count: "exact", head: true })
-          .eq("recruiter_id", recruiterId),
-      ]);
-
-      if (!isMounted) return;
 
       if (profileResult.error) {
         console.error("Company details fetch error:", profileResult.error);
@@ -133,12 +126,7 @@ const OnboardingChecklist = () => {
       setFirstJobComplete(hasFirstJob);
 
       if (hasCompanyDetails && hasFirstJob) {
-        const { error } = await supabase
-          .from("recruiter_profiles")
-          .upsert(
-            { id: recruiterId, onboarding_complete: true },
-            { onConflict: "id" },
-          );
+        const { error } = await markOnboardingComplete(recruiterId);
 
         if (error) {
           console.error("Onboarding completion update error:", error);

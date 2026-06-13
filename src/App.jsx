@@ -76,7 +76,7 @@ const App = () => {
             <Route path="/candidates/:candidateId" element={<RecruiterLayout><CandidateProfile /></RecruiterLayout>} />
             <Route path="/analytics" element={<RecruiterLayout><RecruiterAnalytics /></RecruiterLayout>} />
             <Route path="/billing" element={<RecruiterLayout><BillingPage /></RecruiterLayout>} />
-            <Route path="/settings" element={<RecruiterSettings />} />
+            <Route path="/settings" element={<RecruiterLayout><RecruiterSettings /></RecruiterLayout>} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

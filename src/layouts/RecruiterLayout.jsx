@@ -224,8 +224,8 @@ const RecruiterLayout = ({ children }) => {
 
       const [quotaResult, notificationResult] = await Promise.all([
         supabase
-          .from("recruiter_profiles")
-          .select("assessments_used, plan_limit")
+          .from("profiles")
+          .select("assessments_used, assessments_limit")
           .eq("id", user.id)
           .maybeSingle(),
         supabase
