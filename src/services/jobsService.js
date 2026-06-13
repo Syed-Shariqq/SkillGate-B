@@ -74,3 +74,137 @@ export const getAllJobs = async (uid) => {
     return { data: null, error };
   }
 };
+
+export const getJobById = async (jobId, uid) => {
+  try {
+    const { data, error } = await supabase
+      .from("jobs")
+      .select(`
+        id, title, company_name, is_active, assessment_link_token,
+        link_expires_at, link_max_uses, link_use_count,
+        min_score_threshold, created_at
+      `)
+      .eq("id", jobId)
+      .eq("recruiter_id", uid)
+      .maybeSingle();
+
+    return { data, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+export const getJobCandidates = async (jobId, uid) => {
+  try {
+    const { data, error } = await supabase
+      .from("candidates")
+      .select(`
+        id, full_name, email, status, created_at,
+        assessments!inner(
+          id, status, tab_switches, paste_attempts, is_flagged, completed_at,
+          results(overall_score, passed, confidence_label, time_taken_seconds)
+        )
+      `)
+      .eq("job_id", jobId)
+      .eq("recruiter_id", uid)
+      .eq("assessments.status", "completed");
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    const sortedData = (data || []).sort((a, b) => {
+      const scoreA = a.assessments?.[0]?.results?.[0]?.overall_score ?? 0;
+      const scoreB = b.assessments?.[0]?.results?.[0]?.overall_score ?? 0;
+      return scoreB - scoreA;
+    });
+
+    const mapped = sortedData.map((candidate, index) => {
+      const assessment = candidate.assessments?.[0] || {};
+      const result = assessment.results?.[0] || {};
+      return {
+        id: candidate.id,
+        rank: index + 1,
+        name: candidate.full_name,
+        email: candidate.email,
+        status: candidate.status,
+        score: result.overall_score ?? 0,
+        passed: result.passed ?? false,
+        confidence: result.confidence_label ?? "Low",
+        tabSwitches: assessment.tab_switches ?? 0,
+        pasteAttempts: assessment.paste_attempts ?? 0,
+        timeTaken: result.time_taken_seconds ?? 0,
+        shortlisted: candidate.status === "shortlisted",
+        rejected: candidate.status === "rejected",
+        completedAt: assessment.completed_at,
+      };
+    });
+
+    return { data: mapped, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+export const toggleJobActive = async (jobId, uid, isActive) => {
+  try {
+    const { data, error } = await supabase
+      .from("jobs")
+      .update({ is_active: isActive })
+      .eq("id", jobId)
+      .eq("recruiter_id", uid)
+      .select();
+
+    return { data, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+export const updateCandidateStatus = async (candidateId, uid, status) => {
+  try {
+    const { data, error } = await supabase
+      .from("candidates")
+      .update({ status })
+      .eq("id", candidateId)
+      .eq("recruiter_id", uid)
+      .select();
+
+    return { data, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+export const bulkUpdateCandidateStatus = async (candidateIds, uid, status) => {
+  try {
+    const { data, error } = await supabase
+      .from("candidates")
+      .update({ status })
+      .in("id", candidateIds)
+      .eq("recruiter_id", uid)
+      .select();
+
+    return { data, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+export const exportCandidatesCSV = (candidates, jobTitle) => {
+  const headers = ['Rank','Name','Email','Score','Passed','Confidence','Tab Switches','Paste Attempts','Time (s)','Status'];
+  const rows = candidates.map(c => [
+    c.rank, c.name, c.email, c.score,
+    c.passed ? 'Yes' : 'No',
+    c.confidence, c.tabSwitches, c.pasteAttempts,
+    c.timeTaken, c.status
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${jobTitle}-candidates.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
