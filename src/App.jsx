@@ -69,13 +69,13 @@ const App = () => {
           <Route path="/onboarding" element={<RecruiterOnboarding />} />
 
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<RecruiterDashboard />} />
-            <Route path="/jobs/create" element={<CreateJob />} />
-            <Route path="/jobs/:jobId" element={<JobDetail />} />
-            <Route path="/jobs/:jobId/settings" element={<JobSettings />} />
-            <Route path="/candidates/:candidateId" element={<CandidateProfile />} />
-            <Route path="/analytics" element={<RecruiterAnalytics />} />
-            <Route path="/billing" element={<BillingPage />} />
+            <Route path="/dashboard" element={<RecruiterLayout><RecruiterDashboard /></RecruiterLayout>} />
+            <Route path="/jobs/create" element={<RecruiterLayout><CreateJob /></RecruiterLayout>} />
+            <Route path="/jobs/:jobId" element={<RecruiterLayout><JobDetail /></RecruiterLayout>} />
+            <Route path="/jobs/:jobId/settings" element={<RecruiterLayout><JobSettings /></RecruiterLayout>} />
+            <Route path="/candidates/:candidateId" element={<RecruiterLayout><CandidateProfile /></RecruiterLayout>} />
+            <Route path="/analytics" element={<RecruiterLayout><RecruiterAnalytics /></RecruiterLayout>} />
+            <Route path="/billing" element={<RecruiterLayout><BillingPage /></RecruiterLayout>} />
             <Route path="/settings" element={<RecruiterSettings />} />
           </Route>
 

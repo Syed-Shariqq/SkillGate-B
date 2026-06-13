@@ -8,7 +8,7 @@ import SkeletonCard from "../components/ui/SkeletonCard";
 const navItems = [
   {
     label: "Dashboard",
-    path: "/recruiter/dashboard",
+    path: "/dashboard",
     icon: (
       <path
         d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z"
@@ -18,7 +18,7 @@ const navItems = [
   },
   {
     label: "All Jobs",
-    path: "/recruiter/jobs",
+    path: "/jobs",
     icon: (
       <path
         d="M9 6V5a3 3 0 0 1 3-3h0a3 3 0 0 1 3 3v1h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Zm2 0h2V5a1 1 0 0 0-2 0v1Zm-5 5h12V8H6v3Zm0 2v5h12v-5H6Z"
@@ -28,7 +28,7 @@ const navItems = [
   },
   {
     label: "Analytics",
-    path: "/recruiter/analytics",
+    path: "/analytics",
     icon: (
       <path
         d="M5 19V9h3v10H5Zm5 0V5h3v14h-3Zm5 0v-7h3v7h-3ZM4 21h16a1 1 0 1 0 0-2H4a1 1 0 1 0 0 2Z"
@@ -38,7 +38,7 @@ const navItems = [
   },
   {
     label: "Notifications",
-    path: "/recruiter/notifications",
+    path: "/notifications",
     icon: (
       <path
         d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 0 0-4 0v1.29A7 7 0 0 0 5 11v5l-1.3 1.3A1 1 0 0 0 4.4 19h15.2a1 1 0 0 0 .7-1.7L19 16Zm-2 .59.41.41H6.59L7 16.59V11a5 5 0 0 1 10 0v5.59Z"
@@ -48,7 +48,7 @@ const navItems = [
   },
   {
     label: "Billing",
-    path: "/recruiter/billing",
+    path: "/billing",
     icon: (
       <path
         d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 2h12V6H6v2Zm0 3v7h12v-7H6Zm2 4h4a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2Z"
@@ -58,7 +58,7 @@ const navItems = [
   },
   {
     label: "Settings",
-    path: "/recruiter/settings",
+    path: "/settings",
     icon: (
       <path
         d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.69-.98L14.5 2.42A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42L9.13 5.07c-.6.23-1.16.56-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.02.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.13.22.39.31.61.22l2.49-1c.52.4 1.09.73 1.69.98l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.6-.23 1.16-.56 1.69-.98l2.49 1c.23.08.48 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"

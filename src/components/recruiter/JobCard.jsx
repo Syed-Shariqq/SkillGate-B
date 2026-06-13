@@ -120,7 +120,7 @@ const JobCard = ({
         {/* Metrics Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-primary/45 rounded-lg p-3 border border-border-default/60">
           {/* Candidate Count (Primary) */}
-          <div className="bg-tertiary/40 border border-border-default rounded-md p-3 flex flex-col justify-between min-h-[68px]">
+          <div className="bg-tertiary/40 border border-border-default rounded-md p-3 flex flex-col justify-between min-h-17">
             <span className="text-[10px] text-text-tertiary font-semibold uppercase tracking-wider">
               Candidates
             </span>
