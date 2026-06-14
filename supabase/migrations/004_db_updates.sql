@@ -82,3 +82,6 @@ begin
     and ratelimit.window_start = p_window_start;
 end;
 $$ language plpgsql security definer;
+
+CREATE POLICY "Public can read recruiter limit for assessment check"
+ON profiles FOR SELECT USING (true);

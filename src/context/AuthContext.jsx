@@ -121,6 +121,15 @@ export const AuthProvider = ({ children }) => {
     return { data, error };
   };
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    const { data, error } = await getProfile(user.id);
+    if (!error && data) {
+      setProfile(data);
+    }
+    return { data, error };
+  };
+
   const value = useMemo(
     () => ({
       user,
@@ -132,6 +141,7 @@ export const AuthProvider = ({ children }) => {
       register,
       logout,
       updateCompanyDetails,
+      refreshProfile,
     }),
     [user, profile, loading],
   );

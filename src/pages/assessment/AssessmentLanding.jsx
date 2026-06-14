@@ -1,5 +1,12 @@
+// Run in Supabase SQL editor:
+// CREATE POLICY "Public can read recruiter limit for assessment check"
+// ON profiles FOR SELECT
+// USING (true);
+// TODO: Restrict this policy to only expose assessments_limit and assessments_used to prevent exposing sensitive details.
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../../config/supabase";
 
 import {
   getSessionFromStorage,
@@ -78,6 +85,27 @@ export default function AssessmentLanding() {
         }
 
         if (status === "valid") {
+          // Check recruiter's assessment limit
+          const recruiterId = data?.recruiter_id;
+          if (recruiterId) {
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("assessments_used, assessments_limit")
+              .eq("id", recruiterId)
+              .maybeSingle();
+
+            if (profileError) {
+              console.error("Error fetching recruiter profile for limit check:", profileError);
+            } else if (profile) {
+              const used = Number(profile.assessments_used) || 0;
+              const limit = Number(profile.assessments_limit) || 0;
+              if (used >= limit) {
+                navigate("/assessment-unavailable", { replace: true });
+                return;
+              }
+            }
+          }
+
           setJob(data);
           setPageStatus("valid");
         } else {

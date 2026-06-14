@@ -33,6 +33,7 @@ import AssessmentLanding from "./pages/assessment/AssessmentLanding";
 import AssessmentPage from "./pages/assessment/AssessmentPage";
 import AssessmentSubmitted from "./pages/assessment/AssessmentSubmitted";
 import RecruiterLayout from "./layouts/RecruiterLayout";
+import AssessmentUnavailable from "./pages/candidate/AssessmentUnavailable";
 
 const App = () => {
 
@@ -61,6 +62,7 @@ const App = () => {
           {/* Public Assessment Routes */}
           <Route path="/assess/expired" element={<AssessmentExpired />} />
           <Route path="/assess/taken" element={<AssessmentAlreadyTaken />} />
+          <Route path="/assessment-unavailable" element={<AssessmentUnavailable />} />
           <Route path="/assess/:token" element={<AssessmentLanding />} />
           <Route path="/assess/:token/test" element={<AssessmentPage />} />
           <Route path="/assess/:token/submitted" element={<AssessmentSubmitted />} />

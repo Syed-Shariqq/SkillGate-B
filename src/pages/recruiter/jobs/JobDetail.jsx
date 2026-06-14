@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AuthContext from "../../../context/AuthContext";
 import CandidateRow from "../../../components/recruiter/CandidateRow";
+import UpgradeBanner from "../../../components/recruiter/UpgradeBanner";
 import {
   getJobById,
   getJobCandidates,
@@ -14,7 +15,7 @@ import {
 const JobDetail = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, profile, loading: authLoading } = useContext(AuthContext);
 
   const [job, setJob] = useState(null);
   const [candidates, setCandidates] = useState([]);
@@ -309,6 +310,7 @@ const JobDetail = () => {
   };
 
   const assessmentUrl = job ? `https://skill-gate-b.vercel.app/r/${job.assessment_link_token}` : "";
+  const isOverLimit = profile ? profile.assessments_used >= profile.assessments_limit : false;
 
   // Computations for stats
   const totalCandidatesCount = candidates.length;
@@ -322,7 +324,7 @@ const JobDetail = () => {
   return (
     <div className="space-y-6 p-6 min-h-screen pb-24 md:pb-6 text-text-primary font-sans bg-primary">
       {/* Back link and Header */}
-      {jobLoading ? (
+      {jobLoading || authLoading ? (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-pulse pb-6 border-b border-border-default">
           <div className="space-y-3">
             <div className="h-4 bg-tertiary rounded w-24"></div>
@@ -479,75 +481,119 @@ const JobDetail = () => {
               </div>
               <div className="space-y-2">
                 <h3 className="text-text-primary text-xl font-semibold">Share your link to start screening</h3>
-                <p className="text-text-secondary text-sm">
-                  Send the link below to candidates. When they complete the assessment, their results will appear here.
-                </p>
+                {isOverLimit ? (
+                  <p className="text-error font-medium text-sm">
+                    Your assessment link is disabled — upgrade to share this job
+                  </p>
+                ) : (
+                  <p className="text-text-secondary text-sm">
+                    Send the link below to candidates. When they complete the assessment, their results will appear here.
+                  </p>
+                )}
               </div>
               <div className="w-full">
-                <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-3 text-left">
-                  <span className="block text-text-secondary text-xs font-semibold uppercase tracking-wide">
-                    Assessment Link
-                  </span>
-                  <div className="flex flex-col sm:flex-row gap-3 items-stretch">
-                    <div className="flex-1 bg-tertiary border border-border-default rounded-lg px-4 py-2.5 font-mono text-sm text-text-primary break-all select-all flex items-center">
-                      {assessmentUrl}
+                {isOverLimit ? (
+                  profile && (
+                    <UpgradeBanner
+                      assessmentsUsed={profile.assessments_used}
+                      assessmentsLimit={profile.assessments_limit}
+                      subscriptionTier={profile.subscription_tier}
+                    />
+                  )
+                ) : (
+                  <>
+                    <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-3 text-left">
+                      <span className="block text-text-secondary text-xs font-semibold uppercase tracking-wide">
+                        Assessment Link
+                      </span>
+                      <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+                        <div className="flex-1 bg-tertiary border border-border-default rounded-lg px-4 py-2.5 font-mono text-sm text-text-primary break-all select-all flex items-center">
+                          {assessmentUrl}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleCopyLink}
+                            className="px-4 py-2.5 text-sm font-semibold rounded-lg bg-accent hover:bg-accent-hover text-text-primary transition-smooth min-w-21.25 cursor-pointer"
+                          >
+                            {copied ? "Copied!" : "Copy"}
+                          </button>
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(assessmentUrl)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center p-2.5 rounded-lg bg-tertiary border border-border-default text-text-secondary hover:text-text-primary hover:bg-secondary transition-smooth cursor-pointer"
+                            title="Share on WhatsApp"
+                          >
+                            <svg className="w-5.5 h-5.5 fill-current text-[#25D366]" viewBox="0 0 24 24">
+                              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.638 1.971 14.167.947 11.536.947c-5.444 0-9.87 4.372-9.873 9.802-.001 1.762.463 3.484 1.343 5.012L2.025 21.84l6.19-1.62c-.524.31-.058.035 1.58-.926z" />
+                            </svg>
+                          </a>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleCopyLink}
-                        className="px-4 py-2.5 text-sm font-semibold rounded-lg bg-accent hover:bg-accent-hover text-text-primary transition-smooth min-w-21.25 cursor-pointer"
-                      >
-                        {copied ? "Copied!" : "Copy"}
-                      </button>
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent(assessmentUrl)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center p-2.5 rounded-lg bg-tertiary border border-border-default text-text-secondary hover:text-text-primary hover:bg-secondary transition-smooth cursor-pointer"
-                        title="Share on WhatsApp"
-                      >
-                        <svg className="w-5.5 h-5.5 fill-current text-[#25D366]" viewBox="0 0 24 24">
-                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.638 1.971 14.167.947 11.536.947c-5.444 0-9.87 4.372-9.873 9.802-.001 1.762.463 3.484 1.343 5.012L2.025 21.84l6.19-1.62c-.524.31-.058.035 1.58-.926z" />
-                        </svg>
-                      </a>
-                    </div>
-                  </div>
-                </div>
+                    {profile && (
+                      <UpgradeBanner
+                        assessmentsUsed={profile.assessments_used}
+                        assessmentsLimit={profile.assessments_limit}
+                        subscriptionTier={profile.subscription_tier}
+                      />
+                    )}
+                  </>
+                )}
               </div>
             </div>
           ) : (
             /* Normal state (has candidates) */
             <div className="space-y-6">
               {/* Assessment Link Block */}
-              <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-3">
-                <span className="block text-text-secondary text-xs font-semibold uppercase tracking-wide">
-                  Assessment Link
-                </span>
-                <div className="flex flex-col sm:flex-row gap-3 items-stretch">
-                  <div className="flex-1 bg-tertiary border border-border-default rounded-lg px-4 py-2.5 font-mono text-sm text-text-primary break-all select-all flex items-center">
-                    {assessmentUrl}
+              {isOverLimit ? (
+                profile && (
+                  <UpgradeBanner
+                    assessmentsUsed={profile.assessments_used}
+                    assessmentsLimit={profile.assessments_limit}
+                    subscriptionTier={profile.subscription_tier}
+                  />
+                )
+              ) : (
+                <>
+                  <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-3">
+                    <span className="block text-text-secondary text-xs font-semibold uppercase tracking-wide">
+                      Assessment Link
+                    </span>
+                    <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+                      <div className="flex-1 bg-tertiary border border-border-default rounded-lg px-4 py-2.5 font-mono text-sm text-text-primary break-all select-all flex items-center">
+                        {assessmentUrl}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleCopyLink}
+                          className="px-4 py-2.5 text-sm font-semibold rounded-lg bg-accent hover:bg-accent-hover text-text-primary transition-smooth min-w-21.25 cursor-pointer"
+                        >
+                          {copied ? "Copied!" : "Copy"}
+                        </button>
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(assessmentUrl)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center p-2.5 rounded-lg bg-tertiary border border-border-default text-text-secondary hover:text-text-primary hover:bg-secondary transition-smooth cursor-pointer"
+                          title="Share on WhatsApp"
+                        >
+                          <svg className="w-5.5 h-5.5 fill-current text-[#25D366]" viewBox="0 0 24 24">
+                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.638 1.971 14.167.947 11.536.947c-5.444 0-9.87 4.372-9.873 9.802-.001 1.762.463 3.484 1.343 5.012L2.025 21.84l6.19-1.62c-.524.31-.058.035 1.58-.926z" />
+                          </svg>
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleCopyLink}
-                      className="px-4 py-2.5 text-sm font-semibold rounded-lg bg-accent hover:bg-accent-hover text-text-primary transition-smooth min-w-21.25 cursor-pointer"
-                    >
-                      {copied ? "Copied!" : "Copy"}
-                    </button>
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(assessmentUrl)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center p-2.5 rounded-lg bg-tertiary border border-border-default text-text-secondary hover:text-text-primary hover:bg-secondary transition-smooth cursor-pointer"
-                      title="Share on WhatsApp"
-                    >
-                      <svg className="w-5.5 h-5.5 fill-current text-[#25D366]" viewBox="0 0 24 24">
-                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.638 1.971 14.167.947 11.536.947c-5.444 0-9.87 4.372-9.873 9.802-.001 1.762.463 3.484 1.343 5.012L2.025 21.84l6.19-1.62c-.524.31-.058.035 1.58-.926z" />
-                      </svg>
-                    </a>
-                  </div>
-                </div>
-              </div>
+                  {profile && (
+                    <UpgradeBanner
+                      assessmentsUsed={profile.assessments_used}
+                      assessmentsLimit={profile.assessments_limit}
+                      subscriptionTier={profile.subscription_tier}
+                    />
+                  )}
+                </>
+              )}
 
               {/* Link Stats Row */}
               <div className="flex flex-wrap gap-4 text-text-secondary text-sm">

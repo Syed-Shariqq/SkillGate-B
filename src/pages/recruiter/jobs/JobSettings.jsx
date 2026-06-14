@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AuthContext from "../../../context/AuthContext";
+import UpgradeBanner from "../../../components/recruiter/UpgradeBanner";
 import {
   getJobSettings,
   updateJobSettings,
@@ -12,7 +13,7 @@ import {
 const JobSettings = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, profile, loading: authLoading } = useContext(AuthContext);
 
   // Core Data States
   const [job, setJob] = useState(null);
@@ -291,6 +292,7 @@ const JobSettings = () => {
   };
 
   const assessmentUrl = job ? `https://skillgate.app/r/${job.assessment_link_token}` : "";
+  const isOverLimit = profile ? profile.assessments_used >= profile.assessments_limit : false;
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6 text-text-primary font-sans bg-primary min-h-screen">
@@ -305,7 +307,7 @@ const JobSettings = () => {
         <h1 className="text-text-primary text-2xl font-semibold mt-4">Job Settings</h1>
       </div>
 
-      {loading ? (
+      {loading || authLoading ? (
         <div className="space-y-6">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
@@ -332,6 +334,13 @@ const JobSettings = () => {
         </div>
       ) : (
         <div className="space-y-6">
+          {profile && (
+            <UpgradeBanner
+              assessmentsUsed={profile.assessments_used}
+              assessmentsLimit={profile.assessments_limit}
+              subscriptionTier={profile.subscription_tier}
+            />
+          )}
           {/* Section 1: Job Info */}
           <form
             onSubmit={handleSaveInfo}
@@ -641,8 +650,9 @@ const JobSettings = () => {
 
               <div className="border-t border-border-default/50 pt-4 space-y-3">
                 <button
-                  onClick={() => setShowResetConfirm(!showResetConfirm)}
-                  disabled={resettingLink}
+                  onClick={() => !isOverLimit && setShowResetConfirm(!showResetConfirm)}
+                  disabled={resettingLink || isOverLimit}
+                  title={isOverLimit ? "Upgrade your plan to manage links" : undefined}
                   className="px-4 py-2 text-sm font-semibold rounded-lg border border-warning text-warning hover:bg-warning/10 transition-smooth cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {resettingLink ? "Resetting..." : "Reset Assessment Link"}
