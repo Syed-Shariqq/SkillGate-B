@@ -224,10 +224,24 @@ Deno.serve(async (req) => {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
-        const recruiterId = session.metadata?.recruiterId;
+        let recruiterId = session.metadata?.recruiterId;
+
+        const assessmentId = session.metadata?.assessmentId || session.client_reference_id || null;
+
+        // If recruiterId is missing but we have an assessmentId, let's look it up from database
+        if (!recruiterId && assessmentId) {
+          const { data: assessmentData } = await supabase
+            .from("assessments")
+            .select("recruiter_id")
+            .eq("id", assessmentId)
+            .maybeSingle();
+          if (assessmentData) {
+            recruiterId = assessmentData.recruiter_id;
+          }
+        }
 
         if (!recruiterId) {
-          console.warn("No recruiterId in session metadata, skipping updates...");
+          console.warn("No recruiterId found in session metadata or via assessmentId lookup, skipping updates...");
           break;
         }
 
@@ -277,7 +291,7 @@ Deno.serve(async (req) => {
           }
         } else if (session.mode === "payment") {
           console.log(`Processing payment mode checkout for recruiter ${recruiterId}`);
-          const assessmentId = session.metadata?.assessmentId || null;
+          const assessmentId = session.metadata?.assessmentId || session.client_reference_id || null;
           let candidateId = null;
 
           if (assessmentId) {

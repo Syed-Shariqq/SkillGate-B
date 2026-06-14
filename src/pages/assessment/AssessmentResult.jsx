@@ -28,6 +28,9 @@ export default function AssessmentResult() {
   const [retryCount, setRetryCount] = useState(0);
   const [fetching, setFetching] = useState(false);
   const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
+  const [hasPurchasedPlan, setHasPurchasedPlan] = useState(false);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   // Esc Key Close Support
   useEffect(() => {
@@ -255,6 +258,71 @@ export default function AssessmentResult() {
       (!result?.questionResults || result.questionResults.length === 0)
     );
   }, [result]);
+
+  // RLS Policy recommendation for training_purchases:
+  // -- CREATE POLICY "Candidates can check their purchase"
+  // -- ON training_purchases FOR SELECT USING (true);
+  const checkTrainingPurchase = async () => {
+    if (!assessmentId) return;
+    setCheckingPurchase(true);
+    try {
+      const { data, error } = await supabase
+        .from("training_purchases")
+        .select("id")
+        .eq("assessment_id", assessmentId)
+        .eq("status", "completed")
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        setHasPurchasedPlan(true);
+      }
+    } catch (err) {
+      console.error("Error checking training purchase:", err);
+    } finally {
+      setCheckingPurchase(false);
+    }
+  };
+
+  useEffect(() => {
+    const checkPurchaseAndCleanUrl = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isPurchasedParam = urlParams.get("training_purchased") === "true";
+
+      // Run DB check either if candidate didn't pass OR if they just got redirected back with training_purchased=true
+      if (scoreVal !== null && (scoreVal < 70 || isPurchasedParam)) {
+        await checkTrainingPurchase();
+      }
+
+      // Clean the URL param if it is present
+      if (isPurchasedParam) {
+        urlParams.delete("training_purchased");
+        const newSearch = urlParams.toString();
+        const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    };
+
+    if (pageStatus === "ready") {
+      checkPurchaseAndCleanUrl();
+    }
+  }, [assessmentId, pageStatus, scoreVal]);
+
+  const handleBuyTrainingPlan = async () => {
+    setPurchaseLoading(true);
+    const paymentLink = import.meta.env.VITE_STRIPE_TRAINING_PLAN_PAYMENT_LINK;
+    if (!paymentLink) {
+      console.error("VITE_STRIPE_TRAINING_PLAN_PAYMENT_LINK is not defined");
+      toast.error("Stripe payment link configuration is missing");
+      setPurchaseLoading(false);
+      return;
+    }
+
+    const currentPageUrl = window.location.href.split("?")[0];
+    const checkoutUrl = `${paymentLink}?client_reference_id=${assessmentId}&success_url=${encodeURIComponent(`${currentPageUrl}?training_purchased=true`)}&cancel_url=${encodeURIComponent(currentPageUrl)}`;
+    
+    window.location.href = checkoutUrl;
+  };
 
   // Accordion Toggle
   const toggleQuestion = useCallback((qId) => {
@@ -853,78 +921,141 @@ export default function AssessmentResult() {
                   {/* Vertical Progress Line */}
                   <div className="absolute left-2.75 md:left-4.75 top-4 bottom-4 w-0.5 bg-linear-to-b from-accent via-accent/40 to-border-default/20 rounded-full" />
                   
-                  {result.trainingPlan.map((dayPlan, index) => (
-                    <div key={dayPlan.day || index} className="relative group">
-                      {/* Timeline Bullet */}
-                      <div className="absolute -left-5.25 md:-left-7.25 top-1.5 z-10 flex items-center justify-center">
-                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary border-2 border-accent flex items-center justify-center text-[10px] md:text-xs font-mono font-bold text-accent shadow-lg group-hover:scale-110 transition-transform duration-200">
-                          {dayPlan.day}
-                        </div>
-                      </div>
-                      
-                      {/* Day Content */}
-                      <div className="space-y-4">
-                        {/* Day Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div>
-                            <span className="font-mono text-xs text-accent uppercase font-bold tracking-wider">
-                              DAY {dayPlan.day}
-                            </span>
-                            <h3 className="text-base md:text-lg font-bold text-text-primary mt-0.5">
-                              {dayPlan.focus}
-                            </h3>
-                          </div>
-                          
-                          {/* Progress Pill */}
-                          <div className="inline-flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 rounded-full bg-accent-soft text-[10px] md:text-xs font-mono text-accent font-semibold border border-accent/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                            Active Milestone
-                          </div>
-                        </div>
-                        
-                        {/* Tasks List */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {dayPlan.tasks?.map((task, taskIdx) => (
-                            <div 
-                              key={taskIdx}
-                              className="group/task card-glass hover:bg-tertiary/40 border border-border-default/60 hover:border-accent/40 p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:shadow-[0_4px_20px_rgba(91,109,246,0.08)] transform hover:-translate-y-0.5"
-                            >
-                              <div className="space-y-2">
-                                {/* Badges */}
-                                <div className="flex flex-wrap gap-2 items-center">
-                                  {/* Duration */}
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tertiary text-[10px] md:text-xs font-mono text-text-secondary border border-border-default/60 font-medium">
-                                    <svg className="w-3 h-3 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    {task.duration}
-                                  </span>
-                                  
-                                  {/* Resource Label */}
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent/10 text-[10px] md:text-xs font-mono text-accent border border-accent/15 font-medium truncate max-w-50">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                    </svg>
-                                    {task.resource}
-                                  </span>
-                                </div>
-                                
-                                {/* Task Title */}
-                                <h4 className="text-sm md:text-base font-bold text-text-primary group-hover:text-accent transition-colors duration-200">
-                                  {task.title}
-                                </h4>
-                                
-                                {/* Description */}
-                                <p className="text-xs md:text-sm text-text-secondary leading-relaxed">
-                                  {task.description}
-                                </p>
+                  {checkingPurchase ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
+                      <p className="text-xs text-text-secondary mt-3 font-sans">Checking training plan access...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {result.trainingPlan
+                        .filter((_, idx) => isPassed || hasPurchasedPlan || idx < 2)
+                        .map((dayPlan, index) => (
+                          <div key={dayPlan.day || index} className="relative group">
+                            {/* Timeline Bullet */}
+                            <div className="absolute -left-5.25 md:-left-7.25 top-1.5 z-10 flex items-center justify-center">
+                              <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary border-2 border-accent flex items-center justify-center text-[10px] md:text-xs font-mono font-bold text-accent shadow-lg group-hover:scale-110 transition-transform duration-200">
+                                {dayPlan.day}
                               </div>
                             </div>
-                          ))}
+                            
+                            {/* Day Content */}
+                            <div className="space-y-4">
+                              {/* Day Header */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                  <span className="font-mono text-xs text-accent uppercase font-bold tracking-wider">
+                                    DAY {dayPlan.day}
+                                  </span>
+                                  <h3 className="text-base md:text-lg font-bold text-text-primary mt-0.5">
+                                    {dayPlan.focus}
+                                  </h3>
+                                </div>
+                                
+                                {/* Progress Pill */}
+                                <div className="inline-flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 rounded-full bg-accent-soft text-[10px] md:text-xs font-mono text-accent font-semibold border border-accent/20">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                                  Active Milestone
+                                </div>
+                              </div>
+                              
+                              {/* Tasks List */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {dayPlan.tasks?.map((task, taskIdx) => (
+                                  <div 
+                                    key={taskIdx}
+                                    className="group/task card-glass hover:bg-tertiary/40 border border-border-default/60 hover:border-accent/40 p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:shadow-[0_4px_20px_rgba(91,109,246,0.08)] transform hover:-translate-y-0.5"
+                                  >
+                                    <div className="space-y-2">
+                                      {/* Badges */}
+                                      <div className="flex flex-wrap gap-2 items-center">
+                                        {/* Duration */}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tertiary text-[10px] md:text-xs font-mono text-text-secondary border border-border-default/60 font-medium">
+                                          <svg className="w-3 h-3 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          </svg>
+                                          {task.duration}
+                                        </span>
+                                        
+                                        {/* Resource Label */}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent/10 text-[10px] md:text-xs font-mono text-accent border border-accent/15 font-medium truncate max-w-50">
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                          </svg>
+                                          {task.resource}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* Task Title */}
+                                      <h4 className="text-sm md:text-base font-bold text-text-primary group-hover:text-accent transition-colors duration-200">
+                                        {task.title}
+                                      </h4>
+                                      
+                                      {/* Description */}
+                                      <p className="text-xs md:text-sm text-text-secondary leading-relaxed">
+                                        {task.description}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      
+                      {!isPassed && !hasPurchasedPlan && (
+                        <div className="relative group pl-6 md:pl-10 mt-8">
+                          {/* Timeline Bullet for locked plan */}
+                          <div className="absolute -left-5.25 md:-left-7.25 top-1.5 z-10 flex items-center justify-center">
+                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary border-2 border-border-default flex items-center justify-center text-[10px] md:text-xs font-mono font-bold text-text-tertiary shadow-lg">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                            </div>
+                          </div>
+                          
+                          {/* Locked Section Card */}
+                          <div className="card-glass border border-border-default/60 p-6 md:p-8 max-w-xl mx-auto flex flex-col items-center text-center relative overflow-hidden bg-secondary/80 backdrop-blur-xs">
+                            <div className="w-12 h-12 rounded-full bg-accent-soft flex items-center justify-center text-accent mb-4">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                            </div>
+                            
+                            <h3 className="text-lg md:text-xl font-bold text-text-primary mb-2">Days 3–7 are locked</h3>
+                            <p className="text-sm text-text-secondary mb-6">Get your personalized full 7-day plan for just $9</p>
+                            
+                            <ul className="text-left text-xs md:text-sm text-text-secondary space-y-2 mb-6 max-w-sm">
+                              <li className="flex items-start gap-2">
+                                <span className="text-accent shrink-0">✓</span>
+                                <span>Detailed daily tasks with resources</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="text-accent shrink-0">✓</span>
+                                <span>Skill-specific practice exercises</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="text-accent shrink-0">✓</span>
+                                <span>Curated learning path to pass next time</span>
+                              </li>
+                            </ul>
+                            
+                            <button
+                              onClick={handleBuyTrainingPlan}
+                              disabled={purchaseLoading}
+                              className="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition-colors duration-200 cursor-pointer disabled:opacity-50"
+                            >
+                              {purchaseLoading ? "Processing..." : "Unlock Full Plan — $9"}
+                            </button>
+                            
+                            <p className="text-[10px] md:text-xs text-text-tertiary mt-3">
+                              One-time payment &middot; Instant access &middot; No subscription
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
