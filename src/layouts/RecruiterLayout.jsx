@@ -4,6 +4,7 @@ import AuthContext from "../context/AuthContext";
 import { supabase } from "../config/supabase";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import SkeletonCard from "../components/ui/SkeletonCard";
+import { getRecentNotifications, markAllAsRead, markOneAsRead } from '../services/notificationService';
 
 const navItems = [
   {
@@ -186,6 +187,24 @@ const Sidebar = ({
   </aside>
 );
 
+const timeAgo = (dateStr) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+};
+
+const getNotifDestination = (notif) => {
+  if (notif.candidate_id) return `/candidates/${notif.candidate_id}`;
+  if (notif.job_id) return `/jobs/${notif.job_id}`;
+  return '/dashboard';
+};
+
 const RecruiterLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -197,6 +216,8 @@ const RecruiterLayout = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [dismissedQuotaKeys, setDismissedQuotaKeys] = useState(() => new Set());
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
 
   const fullName =
     profile?.full_name || user?.user_metadata?.name || user?.email || "Recruiter";
@@ -288,6 +309,43 @@ const RecruiterLayout = ({ children }) => {
     });
   };
 
+  const fetchNotifications = async () => {
+    if (!user?.id) return;
+    setNotifLoading(true);
+    const { data } = await getRecentNotifications(user.id);
+    setNotifications(data || []);
+    setNotifLoading(false);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead(user.id);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
+
+  const handleNotifClick = async (notif) => {
+    if (!notif.is_read) {
+      await markOneAsRead(notif.id);
+      setNotifications(prev =>
+        prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    setNotificationOpen(false);
+    navigate(getNotifDestination(notif));
+  };
+
+  useEffect(() => {
+    if (!notificationOpen) return;
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('[data-notification-panel]')) {
+        setNotificationOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notificationOpen]);
+
   const sidebarProps = {
     companyName,
     fullName,
@@ -350,25 +408,111 @@ const RecruiterLayout = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setNotificationOpen((open) => !open)}
-              className="relative flex h-10 w-10 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
-              aria-label="Toggle notifications"
-              aria-expanded={notificationOpen}
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 0 0-4 0v1.29A7 7 0 0 0 5 11v5l-1.3 1.3A1 1 0 0 0 4.4 19h15.2a1 1 0 0 0 .7-1.7L19 16Zm-2 .59.41.41H6.59L7 16.59V11a5 5 0 0 1 10 0v5.59Z"
-                  fill="currentColor"
-                />
-              </svg>
-              {effectiveUnreadCount > 0 && (
-                <span className="absolute right-1 top-1 min-w-5 rounded-full bg-error px-1.5 py-0.5 text-center text-xs font-semibold leading-none text-white">
-                  {effectiveUnreadCount > 99 ? "99+" : effectiveUnreadCount}
-                </span>
+            <div className="relative" data-notification-panel>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !notificationOpen;
+                  setNotificationOpen(next);
+                  if (next) fetchNotifications();
+                }}
+                className="relative flex h-10 w-10 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
+                aria-label="Toggle notifications"
+                aria-expanded={notificationOpen}
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 0 0-4 0v1.29A7 7 0 0 0 5 11v5l-1.3 1.3A1 1 0 0 0 4.4 19h15.2a1 1 0 0 0 .7-1.7L19 16Zm-2 .59.41.41H6.59L7 16.59V11a5 5 0 0 1 10 0v5.59Z"
+                    fill="currentColor"
+                  />
+                </svg>
+                {effectiveUnreadCount > 0 && (
+                  <span className="absolute right-1 top-1 min-w-5 rounded-full bg-error px-1.5 py-0.5 text-center text-xs font-semibold leading-none text-white">
+                    {effectiveUnreadCount > 99 ? "99+" : effectiveUnreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification dropdown */}
+              {notificationOpen && (
+                <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border border-border-default bg-secondary shadow-2xl">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
+                    <span className="text-sm font-semibold text-text-primary">Notifications</span>
+                    <button
+                      type="button"
+                      onClick={handleMarkAllAsRead}
+                      className="text-xs text-accent hover:text-accent-hover transition-colors"
+                    >
+                      Mark all as read
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifLoading ? (
+                      <div className="space-y-1 p-2">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="animate-pulse rounded-lg bg-tertiary h-16 w-full" />
+                        ))}
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                        <svg className="h-8 w-8 text-text-tertiary mb-2" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 0 0-4 0v1.29A7 7 0 0 0 5 11v5l-1.3 1.3A1 1 0 0 0 4.4 19h15.2a1 1 0 0 0 .7-1.7L19 16Z"/>
+                        </svg>
+                        <p className="text-text-tertiary text-sm">You're all caught up</p>
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-border-default">
+                        {notifications.map(notif => (
+                          <li key={notif.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleNotifClick(notif)}
+                              className={`w-full text-left px-4 py-3 hover:bg-tertiary transition-colors ${
+                                !notif.is_read ? 'bg-accent-soft' : ''
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                                  !notif.is_read ? 'bg-accent' : 'bg-transparent'
+                                }`} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-text-primary truncate">
+                                    {notif.title}
+                                  </p>
+                                  <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">
+                                    {notif.message}
+                                  </p>
+                                  <p className="text-xs text-text-tertiary mt-1">
+                                    {timeAgo(notif.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-border-default px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotificationOpen(false);
+                        navigate('/notifications');
+                      }}
+                      className="text-xs text-accent hover:text-accent-hover transition-colors"
+                    >
+                      View all notifications →
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
 
             <RecruiterAvatar name={fullName} />
           </div>
@@ -388,7 +532,7 @@ const RecruiterLayout = ({ children }) => {
                   You've used {quotaPercent}% of your assessment quota.{" "}
                   <button
                     type="button"
-                    onClick={() => navigate("/recruiter/billing/plans")}
+                    onClick={() => navigate("billing/plans")}
                     className="font-semibold underline underline-offset-2"
                   >
                     Upgrade Now

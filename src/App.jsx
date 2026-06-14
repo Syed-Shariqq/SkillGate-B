@@ -24,6 +24,7 @@ import BillingPage from "./pages/recruiter/billing/BillingPage";
 import PlansPage from "./pages/recruiter/billing/PlansPage";
 import RecruiterSettings from "./pages/recruiter/settings/RecruiterSettings";
 import AllJobs from "./pages/recruiter/jobs/AllJobs";
+import NotificationsPage from "./pages/recruiter/notifications/NotificationsPage";
 
 // Assessment Pages
 import AssessmentExpired from "./pages/assessment/AssessmentExpired";
@@ -83,6 +84,7 @@ const App = () => {
             <Route path="/billing/plans" element={<RecruiterLayout><PlansPage /></RecruiterLayout>} />
             <Route path="/jobs" element={<RecruiterLayout><AllJobs /></RecruiterLayout>} />
             <Route path="/settings" element={<RecruiterLayout><RecruiterSettings /></RecruiterLayout>} />
+            <Route path="/notifications" element={<RecruiterLayout><NotificationsPage /></RecruiterLayout>} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
