@@ -552,7 +552,7 @@ const JobDetail = () => {
               {/* Link Stats Row */}
               <div className="flex flex-wrap gap-4 text-text-secondary text-sm">
                 <div className="bg-secondary border border-border-default rounded-full px-4 py-1.5 font-medium">
-                  Opened: <span className="text-text-primary">—</span>
+                  Opened: <span className="text-text-primary">{job.open_count ?? '—'}</span>
                 </div>
                 <div className="bg-secondary border border-border-default rounded-full px-4 py-1.5 font-medium">
                   Started: <span className="text-text-primary">—</span>

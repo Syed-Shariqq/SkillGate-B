@@ -31,6 +31,36 @@ const computeMissedSkills = (assessments) => {
     .slice(0, 5);
 };
 
+export const getLinkOpenCount = async (uid, jobId, dateFilter) => {
+  try {
+    // Get job IDs for this recruiter
+    let jobQuery = supabase
+      .from('jobs')
+      .select('id')
+      .eq('recruiter_id', uid);
+
+    if (jobId !== 'all') jobQuery = jobQuery.eq('id', jobId);
+
+    const { data: jobs, error: jobsError } = await jobQuery;
+    if (jobsError) return { data: null, error: jobsError };
+
+    const jobIds = (jobs || []).map(j => j.id);
+    if (jobIds.length === 0) return { data: 0, error: null };
+
+    let query = supabase
+      .from('link_opens')
+      .select('id', { count: 'exact', head: true })
+      .in('job_id', jobIds);
+
+    if (dateFilter) query = query.gte('opened_at', dateFilter);
+
+    const { count, error } = await query;
+    return { data: count || 0, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
 export const getAnalyticsData = async (uid, jobId, dateRange) => {
   try {
     // Step 1: Build date filter
@@ -65,10 +95,15 @@ export const getAnalyticsData = async (uid, jobId, dateRange) => {
     if (jobId !== 'all') funnelQuery = funnelQuery.eq('job_id', jobId);
     if (dateFilter) funnelQuery = funnelQuery.gte('created_at', dateFilter);
 
-    const [completedResult, funnelResult] = await Promise.all([query, funnelQuery]);
+    const [completedResult, funnelResult, openCount] = await Promise.all([
+      query,
+      funnelQuery,
+      getLinkOpenCount(uid, jobId, dateFilter)
+    ]);
 
     if (completedResult.error) return { data: null, error: completedResult.error };
     if (funnelResult.error) return { data: null, error: funnelResult.error };
+    if (openCount.error) return { data: null, error: openCount.error };
 
     const completed = completedResult.data || [];
     const allAssessments = funnelResult.data || [];
@@ -94,6 +129,10 @@ export const getAnalyticsData = async (uid, jobId, dateRange) => {
 
     const avgTimeTaken = null;
 
+    const linkOpenRate = openCount.data !== null && allAssessments.length > 0
+      ? Math.round((openCount.data / allAssessments.length) * 100)
+      : null;
+
     // scoreDistribution: Bucket scores into ranges: 0-10, 11-20, ..., 91-100
     const scoreDistribution = Array.from({ length: 10 }, (_, i) => {
       const min = i * 10;
@@ -113,11 +152,12 @@ export const getAnalyticsData = async (uid, jobId, dateRange) => {
         passRate,
         avgScore,
         avgTimeTaken,
+        linkOpenRate,
         funnel: {
-          opened: null,
-          started: totalCount,
-          completed: completedCount,
-          passed: passedCount
+          opened: openCount.data ?? null,
+          started: allAssessments.length,
+          completed: completed.length,
+          passed: completed.filter(a => a.results?.[0]?.passed).length
         },
         scoreDistribution,
         completionTrend: groupByDate(completed),

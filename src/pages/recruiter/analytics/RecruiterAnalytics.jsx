@@ -115,7 +115,7 @@ const RecruiterAnalytics = () => {
           {Array.from({ length: 4 }).map((_, idx) => (
             <div
               key={idx}
-              className="bg-secondary border border-border-default rounded-xl p-5 animate-pulse min-h-27.5 flex flex-col justify-between"
+              className="bg-secondary border border-border-default rounded-xl p-5 animate-pulse min-h-[110px] flex flex-col justify-between"
             >
               <div className="h-4 w-24 bg-tertiary rounded" />
               <div className="h-8 w-16 bg-tertiary rounded mt-2" />
@@ -129,7 +129,7 @@ const RecruiterAnalytics = () => {
           {Array.from({ length: 4 }).map((_, idx) => (
             <div
               key={idx}
-              className="bg-secondary border border-border-default rounded-xl p-5 animate-pulse min-h-75 flex flex-col justify-between"
+              className="bg-secondary border border-border-default rounded-xl p-5 animate-pulse min-h-[300px] flex flex-col justify-between"
             >
               <div>
                 <div className="h-5 w-40 bg-tertiary rounded mb-3" />
@@ -240,9 +240,15 @@ const RecruiterAnalytics = () => {
         <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col justify-between">
           <div>
             <p className="text-text-secondary text-sm">Link Open Rate</p>
-            <p className="font-mono text-3xl font-bold text-text-primary mt-2">—</p>
+            <p className="font-mono text-3xl font-bold text-text-primary mt-2">
+              {analytics.linkOpenRate !== null ? `${analytics.linkOpenRate}%` : '—'}
+            </p>
           </div>
-          <p className="text-text-tertiary text-xs mt-3 font-medium">Requires redirect tracking</p>
+          <div className="mt-3">
+            {analytics.linkOpenRate === null && (
+              <span className="text-text-tertiary text-xs">Requires redirect tracking</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -258,11 +264,17 @@ const RecruiterAnalytics = () => {
                 <div className="flex justify-between items-center mb-1 text-sm">
                   <span className="text-text-tertiary">Opened Link</span>
                   <span className="font-mono text-text-tertiary">
-                    — <span className="text-xs font-sans">(redirect tracking required)</span>
+                    {analytics.funnel.opened !== null ? analytics.funnel.opened : '—'}{' '}
+                    {analytics.funnel.opened === null && (
+                      <span className="text-text-tertiary text-xs">(redirect tracking required)</span>
+                    )}
                   </span>
                 </div>
                 <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden relative">
-                  <div className="h-full bg-accent w-0" />
+                  <div
+                    className="h-full bg-accent"
+                    style={{ width: `${analytics.funnel.opened !== null ? 100 : 0}%` }}
+                  />
                 </div>
               </div>
 
@@ -302,7 +314,7 @@ const RecruiterAnalytics = () => {
           </div>
 
           {/* Overall Empty State */}
-          <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col items-center justify-center min-h-75 text-center">
+          <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col items-center justify-center min-h-[300px] text-center">
             <svg
               className="h-12 w-12 text-text-tertiary mb-4"
               fill="none"
@@ -330,11 +342,11 @@ const RecruiterAnalytics = () => {
             <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col justify-between">
               <h2 className="text-text-primary font-semibold mb-4">Score Distribution</h2>
               {scoreDistribution.every((d) => d.count === 0) ? (
-                <div className="flex items-center justify-center h-50">
+                <div className="flex items-center justify-center h-[200px]">
                   <p className="text-text-tertiary text-sm">No score data yet</p>
                 </div>
               ) : (
-                <div className="h-50 w-full">
+                <div className="h-[200px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={scoreDistribution}>
                       <XAxis dataKey="range" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} />
@@ -375,12 +387,12 @@ const RecruiterAnalytics = () => {
             <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col justify-between">
               <h2 className="text-text-primary font-semibold mb-4">Completion Trend</h2>
               {completionTrend.length === 0 || completionTrend.every((d) => d.count === 0) ? (
-                <div className="flex items-center justify-center h-50">
+                <div className="flex items-center justify-center h-[200px]">
                   <p className="text-text-tertiary text-sm">No completions in this date range</p>
                 </div>
               ) : (
-                <div className="h-50 w-full">
-                  <ResponsiveContainer width="100%" height={200}>
+                <div className="h-[200px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={completionTrend}>
                       <XAxis dataKey="date" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} />
                       <YAxis tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} allowDecimals={false} />
@@ -419,11 +431,17 @@ const RecruiterAnalytics = () => {
                   <div className="flex justify-between items-center mb-1 text-sm">
                     <span className="text-text-tertiary">Opened Link</span>
                     <span className="font-mono text-text-tertiary">
-                      — <span className="text-xs font-sans">(redirect tracking required)</span>
+                      {analytics.funnel.opened !== null ? analytics.funnel.opened : '—'}{' '}
+                      {analytics.funnel.opened === null && (
+                        <span className="text-text-tertiary text-xs">(redirect tracking required)</span>
+                      )}
                     </span>
                   </div>
                   <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden relative">
-                    <div className="h-full bg-accent w-0" />
+                    <div
+                      className="h-full bg-accent"
+                      style={{ width: `${analytics.funnel.opened !== null ? 100 : 0}%` }}
+                    />
                   </div>
                 </div>
 
@@ -480,7 +498,7 @@ const RecruiterAnalytics = () => {
                   Skills with lowest average scores across all candidates
                 </p>
                 {missedSkills.length === 0 ? (
-                  <div className="flex items-center justify-center h-40">
+                  <div className="flex items-center justify-center h-[160px]">
                     <p className="text-text-tertiary text-sm">Not enough data yet</p>
                   </div>
                 ) : (

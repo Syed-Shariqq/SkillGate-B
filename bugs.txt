@@ -6,5 +6,3 @@ Sometimes the pages just stop at loading state many times
 
 Note:
 Billing Page and Plans Page to be configured after Stripe integration
-
-k

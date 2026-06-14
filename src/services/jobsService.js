@@ -77,18 +77,32 @@ export const getAllJobs = async (uid) => {
 
 export const getJobById = async (jobId, uid) => {
   try {
-    const { data, error } = await supabase
-      .from("jobs")
-      .select(`
-        id, title, company_name, is_active, assessment_link_token,
-        link_expires_at, link_max_uses, link_use_count,
-        min_score_threshold, created_at
-      `)
-      .eq("id", jobId)
-      .eq("recruiter_id", uid)
-      .maybeSingle();
+    const [jobResult, openCountResult] = await Promise.all([
+      supabase
+        .from('jobs')
+        .select(`
+          id, title, company_name, is_active, assessment_link_token,
+          link_expires_at, link_max_uses, link_use_count,
+          min_score_threshold, created_at
+        `)
+        .eq('id', jobId)
+        .eq('recruiter_id', uid)
+        .maybeSingle(),
+      supabase
+        .from('link_opens')
+        .select('id', { count: 'exact', head: true })
+        .eq('job_id', jobId)
+    ]);
 
-    return { data, error };
+    if (jobResult.error) return { data: null, error: jobResult.error };
+
+    return {
+      data: {
+        ...jobResult.data,
+        open_count: openCountResult.count || 0
+      },
+      error: null
+    };
   } catch (error) {
     return { data: null, error };
   }

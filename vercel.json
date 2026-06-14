@@ -1,5 +1,9 @@
 {
   "rewrites": [
+    {
+      "source": "/r/:token",
+      "destination": "https://ibamvdjwtvqwimlkueby.supabase.co/functions/v1/redirect-link/:token"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
