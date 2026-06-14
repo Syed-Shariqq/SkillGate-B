@@ -2,14 +2,16 @@ import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthContext from "../../../context/AuthContext";
 import { getBillingInfo } from "../../../services/billingService";
+import toast from "react-hot-toast";
 
 const BillingPage = () => {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, refreshProfile } = useContext(AuthContext);
 
   const [billingInfo, setBillingInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [banner, setBanner] = useState(null);
 
   const fetchBilling = async () => {
     if (!user?.id) return;
@@ -33,8 +35,43 @@ const BillingPage = () => {
     fetchBilling();
   }, [user?.id]);
 
+  useEffect(() => {
+    const handleQueryParams = async () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("success") === "true") {
+        setBanner({
+          type: "success",
+          message: "Plan upgraded successfully!",
+        });
+        toast.success("Plan upgraded successfully!");
+        if (refreshProfile) {
+          await refreshProfile();
+        }
+        fetchBilling();
+
+        // Clean URL
+        params.delete("success");
+        const newSearch = params.toString();
+        const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+        window.history.replaceState({}, document.title, cleanUrl);
+      } else if (params.get("cancelled") === "true") {
+        setBanner({
+          type: "warning",
+          message: "Checkout cancelled. Your plan was not changed.",
+        });
+        // Clean URL
+        params.delete("cancelled");
+        const newSearch = params.toString();
+        const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    };
+
+    handleQueryParams();
+  }, [refreshProfile]);
+
   const capitalize = (str) => {
-    if (!str) return "Free";
+    if (!str) return "Starter";
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   };
 
@@ -77,9 +114,9 @@ const BillingPage = () => {
     );
   }
 
-  const tier = billingInfo?.subscription_tier || "free";
+  const tier = (billingInfo?.subscription_tier || "starter").toLowerCase();
   const used = billingInfo?.assessments_used ?? 0;
-  const limit = billingInfo?.assessments_limit ?? 50;
+  const limit = billingInfo?.assessments_limit ?? 10;
   const percent = Math.min(100, Math.round((used / limit) * 100));
   const barColor = percent < 60 ? "bg-accent" : percent < 80 ? "bg-warning" : "bg-error";
 
@@ -98,6 +135,35 @@ const BillingPage = () => {
         <p className="text-text-secondary text-sm mt-1">Manage your plan and monitor usage.</p>
       </div>
 
+      {banner && (
+        <div
+          className={`p-4 rounded-xl border ${
+            banner.type === "success"
+              ? "bg-success/10 border-success/30 text-success"
+              : "bg-warning/10 border-warning/30 text-warning"
+          } text-sm flex items-center justify-between gap-3`}
+        >
+          <div className="flex items-center gap-2">
+            {banner.type === "success" ? (
+              <svg className="w-5 h-5 shrink-0 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 shrink-0 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            )}
+            <span>{banner.message}</span>
+          </div>
+          <button
+            onClick={() => setBanner(null)}
+            className="text-text-secondary hover:text-text-primary text-xs font-semibold cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="space-y-6">
         {/* Section 1: Current Plan */}
         <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -106,9 +172,9 @@ const BillingPage = () => {
               <h2 className="text-text-primary font-semibold text-base">Current Plan</h2>
               <span
                 className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
-                  tier === "pro"
+                  tier === "growth"
                     ? "bg-accent-soft text-accent"
-                    : tier === "enterprise"
+                    : tier === "scale"
                       ? "bg-success/15 text-success"
                       : "bg-tertiary text-text-secondary"
                 }`}
@@ -117,11 +183,11 @@ const BillingPage = () => {
               </span>
             </div>
             <p className="text-text-secondary text-sm">
-              {tier === "pro"
-                ? "Up to 500 assessments per month"
-                : tier === "enterprise"
-                  ? "Unlimited assessments"
-                  : "Up to 50 assessments per month"}
+              {tier === "growth"
+                ? "Up to 100 assessments per month"
+                : tier === "scale"
+                  ? "Up to 500 assessments per month"
+                  : "Up to 10 assessments per month"}
             </p>
           </div>
           <button
@@ -175,7 +241,7 @@ const BillingPage = () => {
         <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-4">
           <h2 className="text-text-primary font-semibold text-base">Invoice History</h2>
 
-          {tier === "free" ? (
+          {tier === "starter" ? (
             <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
               <svg className="w-8 h-8 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
