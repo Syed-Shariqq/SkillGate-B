@@ -10,12 +10,24 @@ const PlansPage = () => {
 
   const [openIndex, setOpenIndex] = useState(null);
   const [upgradeLoading, setUpgradeLoading] = useState(null);
+  const [tierLoading, setTierLoading] = useState(true);
+
+  const [currentTier, setCurrentTier] = useState(null);
 
   useEffect(() => {
-    refreshProfile();
+    const init = async () => {
+      const { data } = await refreshProfile();
+      if (data) setCurrentTier(data.subscription_tier);
+      setTierLoading(false);
+    };
+    init();
   }, []);
 
-  const tier = (profile?.subscription_tier || "starter").toLowerCase();
+  const tier = (
+    currentTier ||
+    profile?.subscription_tier ||
+    "starter"
+  ).toLowerCase();
 
   const handleUpgrade = async (priceId) => {
     setUpgradeLoading(priceId);
@@ -52,8 +64,6 @@ const PlansPage = () => {
         err.message || "An error occurred during upgrade redirection.",
       );
       setUpgradeLoading(null);
-    } finally {
-      setUpgradeLoading(null);
     }
   };
 
@@ -83,6 +93,8 @@ const PlansPage = () => {
   const toggleFaq = (index) => {
     setOpenIndex(openIndex === index ? null : index);
   };
+
+  if (tierLoading) return null;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-12 text-text-primary font-sans bg-primary min-h-screen">

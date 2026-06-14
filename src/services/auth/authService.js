@@ -1,7 +1,7 @@
-import { supabase } from '../../config/supabase'
+import { supabase } from "../../config/supabase";
 
 const PROFILE_SELECT =
-  'id, full_name, company_name, company_website, work_email, is_onboarded'
+  "id, full_name, company_name, company_website, work_email, is_onboarded, subscription_tier, assessments_used, assessments_limit, stripe_customer_id, billing_cycle_reset_at";
 
 export const register = ({ name, email, password }) => {
   return supabase.auth.signUp({
@@ -12,47 +12,47 @@ export const register = ({ name, email, password }) => {
         name,
       },
     },
-  })
-}
+  });
+};
 
 export const login = ({ email, password }) => {
   return supabase.auth.signInWithPassword({
     email,
     password,
-  })
-}
+  });
+};
 
 export const logout = () => {
-  return supabase.auth.signOut()
-}
+  return supabase.auth.signOut();
+};
 
 export const getCurrentUser = async () => {
-  const { data } = await supabase.auth.getUser()
+  const { data } = await supabase.auth.getUser();
 
-  return data.user || null
-}
+  return data.user || null;
+};
 
 export const getProfile = (userId) => {
   return supabase
-    .from('profiles')
+    .from("profiles")
     .select(PROFILE_SELECT)
-    .eq('id', userId)
-    .single()
-}
+    .eq("id", userId)
+    .single();
+};
 
 export const updateCompanyDetails = (
   userId,
-  { company_name, company_website, work_email }
+  { company_name, company_website, work_email },
 ) => {
   return supabase
-    .from('profiles')
+    .from("profiles")
     .update({
       company_name,
       company_website,
       work_email,
       is_onboarded: true,
     })
-    .eq('id', userId)
+    .eq("id", userId)
     .select(PROFILE_SELECT)
-    .single()
-}
+    .single();
+};
