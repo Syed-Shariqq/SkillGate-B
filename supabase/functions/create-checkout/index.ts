@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -20,7 +21,7 @@ function jsonResponse(data: unknown, status: number): Response {
 // Helper to build URL encoded params for Stripe
 function buildUrlEncodedParams(params: Record<string, any>): URLSearchParams {
   const urlParams = new URLSearchParams();
-  
+
   function serialize(obj: any, prefix = "") {
     if (obj === null || obj === undefined) {
       return;
@@ -34,13 +35,17 @@ function buildUrlEncodedParams(params: Record<string, any>): URLSearchParams {
       urlParams.append(prefix, String(obj));
     }
   }
-  
+
   serialize(params);
   return urlParams;
 }
 
 // Stripe request helper
-async function stripeRequest(path: string, params: Record<string, any> = {}, method = "POST") {
+async function stripeRequest(
+  path: string,
+  params: Record<string, any> = {},
+  method = "POST",
+) {
   const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
   if (!stripeSecretKey) {
     throw new Error("STRIPE_SECRET_KEY is not configured");
@@ -48,11 +53,11 @@ async function stripeRequest(path: string, params: Record<string, any> = {}, met
 
   // Basic auth: btoa(STRIPE_SECRET_KEY + ':')
   const authHeader = `Basic ${btoa(stripeSecretKey + ":")}`;
-  
+
   let url = `https://api.stripe.com/v1${path}`;
   let body: BodyInit | null = null;
   const headers: Record<string, string> = {
-    "Authorization": authHeader,
+    Authorization: authHeader,
   };
 
   if (method === "GET") {
@@ -77,7 +82,9 @@ async function stripeRequest(path: string, params: Record<string, any> = {}, met
 
   const responseData = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const errorMsg = responseData.error?.message || `Stripe request failed with status ${response.status}`;
+    const errorMsg =
+      responseData.error?.message ||
+      `Stripe request failed with status ${response.status}`;
     throw new Error(errorMsg);
   }
 
@@ -100,9 +107,13 @@ Deno.serve(async (req) => {
 
   try {
     // 3. Authenticate the request
-    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    const authHeader =
+      req.headers.get("Authorization") || req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
+      return jsonResponse(
+        { error: "Missing or invalid Authorization header" },
+        401,
+      );
     }
     const token = authHeader.substring(7).trim();
 
@@ -111,7 +122,10 @@ Deno.serve(async (req) => {
 
     if (!supabaseUrl || !serviceRoleKey) {
       console.error("Supabase environment variables are missing");
-      return jsonResponse({ error: "Internal server configuration error" }, 500);
+      return jsonResponse(
+        { error: "Internal server configuration error" },
+        500,
+      );
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -121,7 +135,10 @@ Deno.serve(async (req) => {
       },
     });
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
     if (authError || !user) {
       console.error("Authentication failed:", authError);
       return jsonResponse({ error: "Unauthorized" }, 401);
@@ -143,14 +160,21 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "recruiterId is required" }, 400);
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(recruiterId)) {
       return jsonResponse({ error: "recruiterId must be a valid UUID" }, 400);
     }
 
     // 5. Authorization check
     if (user.id !== recruiterId) {
-      return jsonResponse({ error: "Forbidden: You can only create checkout sessions for yourself" }, 403);
+      return jsonResponse(
+        {
+          error:
+            "Forbidden: You can only create checkout sessions for yourself",
+        },
+        403,
+      );
     }
 
     // 6. Query profiles table
@@ -173,24 +197,38 @@ Deno.serve(async (req) => {
     let stripeCustomerId = profile.stripe_customer_id;
 
     if (!stripeCustomerId) {
-      console.log(`Stripe customer ID not found in profile for ${recruiterId}. Searching Stripe...`);
-      
+      console.log(
+        `Stripe customer ID not found in profile for ${recruiterId}. Searching Stripe...`,
+      );
+
       const queryVal = `email:'${profile.email}'`;
-      const searchResult = await stripeRequest("/customers/search", { query: queryVal }, "GET");
+      const searchResult = await stripeRequest(
+        "/customers/search",
+        { query: queryVal },
+        "GET",
+      );
 
       if (searchResult.data && searchResult.data.length > 0) {
         stripeCustomerId = searchResult.data[0].id;
-        console.log(`Found existing Stripe customer ${stripeCustomerId} for ${profile.email}`);
+        console.log(
+          `Found existing Stripe customer ${stripeCustomerId} for ${profile.email}`,
+        );
       } else {
-        console.log(`No Stripe customer found for ${profile.email}. Creating new customer...`);
-        const newCustomer = await stripeRequest("/customers", {
-          email: profile.email,
-          name: profile.full_name || "",
-          metadata: {
-            recruiterId: recruiterId,
+        console.log(
+          `No Stripe customer found for ${profile.email}. Creating new customer...`,
+        );
+        const newCustomer = await stripeRequest(
+          "/customers",
+          {
+            email: profile.email,
+            name: profile.full_name || "",
+            metadata: {
+              recruiterId: recruiterId,
+            },
           },
-        }, "POST");
-        
+          "POST",
+        );
+
         stripeCustomerId = newCustomer.id;
         console.log(`Created Stripe customer ${stripeCustomerId}`);
       }
@@ -202,8 +240,14 @@ Deno.serve(async (req) => {
         .eq("id", recruiterId);
 
       if (updateError) {
-        console.error("Failed to update profile stripe_customer_id:", updateError);
-        return jsonResponse({ error: "Failed to update profile with customer ID" }, 500);
+        console.error(
+          "Failed to update profile stripe_customer_id:",
+          updateError,
+        );
+        return jsonResponse(
+          { error: "Failed to update profile with customer ID" },
+          500,
+        );
       }
     }
 
@@ -221,8 +265,9 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      success_url: "https://skillgate.vercel.app/billing?success=true&session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "https://skillgate.vercel.app/billing?cancelled=true",
+      success_url:
+        "https://skill-gate-b.vercel.app/billing?success=true&session_id={CHECKOUT_SESSION_ID}",
+      cancel_url: "https://skill-gate-b.vercel.app/billing?cancelled=true",
       metadata: {
         recruiterId: recruiterId,
       },
@@ -233,20 +278,29 @@ Deno.serve(async (req) => {
       checkoutParams.billing_address_collection = "auto";
     }
 
-    console.log(`Creating Stripe checkout session for ${recruiterId} in ${mode} mode...`);
-    const session = await stripeRequest("/checkout/sessions", checkoutParams, "POST");
+    console.log(
+      `Creating Stripe checkout session for ${recruiterId} in ${mode} mode...`,
+    );
+    const session = await stripeRequest(
+      "/checkout/sessions",
+      checkoutParams,
+      "POST",
+    );
 
     if (!session.url) {
       console.error("Stripe session created but has no URL:", session);
-      return jsonResponse({ error: "Failed to generate checkout session URL" }, 500);
+      return jsonResponse(
+        { error: "Failed to generate checkout session URL" },
+        500,
+      );
     }
 
     // 10. Return { url: session.url } with 200
     return jsonResponse({ url: session.url }, 200);
-
   } catch (error) {
     console.error("Unexpected error in create-checkout function:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+    const errorMessage =
+      error instanceof Error ? error.message : "An unexpected error occurred";
     return jsonResponse({ error: errorMessage }, 500);
   }
 });

@@ -11,12 +11,18 @@ const PlansPage = () => {
   const [openIndex, setOpenIndex] = useState(null);
   const [upgradeLoading, setUpgradeLoading] = useState(null);
 
+  useEffect(() => {
+    refreshProfile();
+  }, []);
+
   const tier = (profile?.subscription_tier || "starter").toLowerCase();
 
   const handleUpgrade = async (priceId) => {
     setUpgradeLoading(priceId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         navigate("/auth");
         return;
@@ -26,7 +32,7 @@ const PlansPage = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           priceId,
@@ -42,7 +48,9 @@ const PlansPage = () => {
       window.location.href = result.url;
     } catch (err) {
       console.error("Upgrade error:", err);
-      toast.error(err.message || "An error occurred during upgrade redirection.");
+      toast.error(
+        err.message || "An error occurred during upgrade redirection.",
+      );
       setUpgradeLoading(null);
     } finally {
       setUpgradeLoading(null);
@@ -86,7 +94,9 @@ const PlansPage = () => {
         >
           ← Back to Billing
         </button>
-        <h1 className="text-text-primary text-3xl font-semibold text-center mt-6">Choose Your Plan</h1>
+        <h1 className="text-text-primary text-3xl font-semibold text-center mt-6">
+          Choose Your Plan
+        </h1>
         <p className="text-text-secondary text-sm text-center mt-1">
           Scale your hiring with AI-powered screening.
         </p>
@@ -98,10 +108,14 @@ const PlansPage = () => {
         <div className="bg-secondary border border-border-default rounded-xl p-6 relative flex flex-col">
           <h2 className="text-text-primary text-xl font-bold">Starter</h2>
           <div className="mt-2">
-            <span className="text-text-primary text-3xl font-mono font-bold">$0</span>
+            <span className="text-text-primary text-3xl font-mono font-bold">
+              $0
+            </span>
             <span className="text-text-secondary text-sm"> / month</span>
           </div>
-          <p className="text-text-tertiary text-sm mt-1 mb-4">10 assessments / month</p>
+          <p className="text-text-tertiary text-sm mt-1 mb-4">
+            10 assessments / month
+          </p>
 
           <hr className="border-t border-border-default my-4" />
 
@@ -155,10 +169,14 @@ const PlansPage = () => {
           </span>
           <h2 className="text-text-primary text-xl font-bold">Growth</h2>
           <div className="mt-2">
-            <span className="text-text-primary text-3xl font-mono font-bold">$99</span>
+            <span className="text-text-primary text-3xl font-mono font-bold">
+              $99
+            </span>
             <span className="text-text-secondary text-sm"> / month</span>
           </div>
-          <p className="text-text-tertiary text-sm mt-1 mb-4">100 assessments / month</p>
+          <p className="text-text-tertiary text-sm mt-1 mb-4">
+            100 assessments / month
+          </p>
 
           <hr className="border-t border-border-default my-4" />
 
@@ -203,11 +221,15 @@ const PlansPage = () => {
               </button>
             ) : (
               <button
-                onClick={() => handleUpgrade(import.meta.env.VITE_STRIPE_GROWTH_PRICE_ID)}
+                onClick={() =>
+                  handleUpgrade(import.meta.env.VITE_STRIPE_GROWTH_PRICE_ID)
+                }
                 disabled={upgradeLoading !== null}
                 className="w-full py-2.5 px-4 rounded-lg bg-accent text-text-primary hover:bg-accent-hover text-sm font-semibold transition-smooth cursor-pointer text-center flex items-center justify-center font-sans"
               >
-                {upgradeLoading === import.meta.env.VITE_STRIPE_GROWTH_PRICE_ID ? "Redirecting..." : "Upgrade to Growth"}
+                {upgradeLoading === import.meta.env.VITE_STRIPE_GROWTH_PRICE_ID
+                  ? "Redirecting..."
+                  : "Upgrade to Growth"}
               </button>
             )}
           </div>
@@ -217,10 +239,14 @@ const PlansPage = () => {
         <div className="bg-secondary border border-border-default rounded-xl p-6 relative flex flex-col">
           <h2 className="text-text-primary text-xl font-bold">Scale</h2>
           <div className="mt-2">
-            <span className="text-text-primary text-3xl font-mono font-bold">$299</span>
+            <span className="text-text-primary text-3xl font-mono font-bold">
+              $299
+            </span>
             <span className="text-text-secondary text-sm"> / month</span>
           </div>
-          <p className="text-text-tertiary text-sm mt-1 mb-4">500 assessments / month</p>
+          <p className="text-text-tertiary text-sm mt-1 mb-4">
+            500 assessments / month
+          </p>
 
           <hr className="border-t border-border-default my-4" />
 
@@ -258,11 +284,15 @@ const PlansPage = () => {
               </span>
             ) : (
               <button
-                onClick={() => handleUpgrade(import.meta.env.VITE_STRIPE_SCALE_PRICE_ID)}
+                onClick={() =>
+                  handleUpgrade(import.meta.env.VITE_STRIPE_SCALE_PRICE_ID)
+                }
                 disabled={upgradeLoading !== null}
                 className="w-full py-2.5 px-4 rounded-lg bg-accent text-text-primary hover:bg-accent-hover text-sm font-semibold transition-smooth cursor-pointer text-center flex items-center justify-center font-sans"
               >
-                {upgradeLoading === import.meta.env.VITE_STRIPE_SCALE_PRICE_ID ? "Redirecting..." : "Upgrade to Scale"}
+                {upgradeLoading === import.meta.env.VITE_STRIPE_SCALE_PRICE_ID
+                  ? "Redirecting..."
+                  : "Upgrade to Scale"}
               </button>
             )}
           </div>
@@ -271,7 +301,9 @@ const PlansPage = () => {
 
       {/* Feature Comparison Table */}
       <div className="pt-6">
-        <h2 className="text-text-primary font-semibold text-lg mb-4">Full Feature Comparison</h2>
+        <h2 className="text-text-primary font-semibold text-lg mb-4">
+          Full Feature Comparison
+        </h2>
         <div className="overflow-x-auto border border-border-default rounded-xl">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
@@ -284,28 +316,50 @@ const PlansPage = () => {
             </thead>
             <tbody className="divide-y divide-border-default">
               {[
-                { name: "AI Question Generation", free: "✓", pro: "✓", ent: "✓" },
+                {
+                  name: "AI Question Generation",
+                  free: "✓",
+                  pro: "✓",
+                  ent: "✓",
+                },
                 { name: "Automated Scoring", free: "✓", pro: "✓", ent: "✓" },
                 { name: "Candidate Ranking", free: "✓", pro: "✓", ent: "✓" },
-                { name: "Monthly Assessments", free: "10", pro: "100", ent: "500" },
+                {
+                  name: "Monthly Assessments",
+                  free: "10",
+                  pro: "100",
+                  ent: "500",
+                },
                 { name: "Custom Branding", free: "—", pro: "✓", ent: "✓" },
                 { name: "Advanced Analytics", free: "—", pro: "✓", ent: "✓" },
                 { name: "CSV Export", free: "—", pro: "✓", ent: "✓" },
                 { name: "Priority Support", free: "—", pro: "✓", ent: "✓" },
                 { name: "Webhook Integrations", free: "—", pro: "✓", ent: "✓" },
-                { name: "Dedicated Account Manager", free: "—", pro: "—", ent: "✓" },
+                {
+                  name: "Dedicated Account Manager",
+                  free: "—",
+                  pro: "—",
+                  ent: "✓",
+                },
                 { name: "SSO / SAML", free: "—", pro: "—", ent: "✓" },
                 { name: "SLA Guarantee", free: "—", pro: "—", ent: "✓" },
               ].map((row, idx) => (
-                <tr key={idx} className={`${idx % 2 === 0 ? "bg-secondary" : "bg-primary"}`}>
-                  <td className="px-4 py-3 text-text-primary font-medium">{row.name}</td>
+                <tr
+                  key={idx}
+                  className={`${idx % 2 === 0 ? "bg-secondary" : "bg-primary"}`}
+                >
+                  <td className="px-4 py-3 text-text-primary font-medium">
+                    {row.name}
+                  </td>
                   <td className="px-4 py-3 text-center font-semibold">
                     {row.free === "✓" ? (
                       <span className="text-success font-bold">✓</span>
                     ) : row.free === "—" ? (
                       <span className="text-text-tertiary">—</span>
                     ) : (
-                      <span className="text-text-secondary font-mono">{row.free}</span>
+                      <span className="text-text-secondary font-mono">
+                        {row.free}
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center font-semibold">
@@ -314,7 +368,9 @@ const PlansPage = () => {
                     ) : row.pro === "—" ? (
                       <span className="text-text-tertiary">—</span>
                     ) : (
-                      <span className="text-text-secondary font-mono">{row.pro}</span>
+                      <span className="text-text-secondary font-mono">
+                        {row.pro}
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center font-semibold">
@@ -323,7 +379,9 @@ const PlansPage = () => {
                     ) : row.ent === "—" ? (
                       <span className="text-text-tertiary">—</span>
                     ) : (
-                      <span className="text-text-secondary font-mono">{row.ent}</span>
+                      <span className="text-text-secondary font-mono">
+                        {row.ent}
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -335,7 +393,9 @@ const PlansPage = () => {
 
       {/* FAQ Accordion */}
       <div className="pt-6">
-        <h2 className="text-text-primary font-semibold text-lg mb-4">Frequently Asked Questions</h2>
+        <h2 className="text-text-primary font-semibold text-lg mb-4">
+          Frequently Asked Questions
+        </h2>
         <div className="space-y-2">
           {faqs.map((faq, index) => {
             const isOpen = openIndex === index;
@@ -355,10 +415,18 @@ const PlansPage = () => {
                     stroke="currentColor"
                     strokeWidth="2.5"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
-                {isOpen && <p className="text-text-secondary text-sm mt-2 transition-smooth">{faq.a}</p>}
+                {isOpen && (
+                  <p className="text-text-secondary text-sm mt-2 transition-smooth">
+                    {faq.a}
+                  </p>
+                )}
               </div>
             );
           })}
