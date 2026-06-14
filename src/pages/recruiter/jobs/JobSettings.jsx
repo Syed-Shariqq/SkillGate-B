@@ -206,7 +206,7 @@ const JobSettings = () => {
 
   const handleCopyLink = () => {
     if (!job?.assessment_link_token) return;
-    const url = `https://skillgate.app/assess/${job.assessment_link_token}`;
+    const url = `https://skillgate.app/r/${job.assessment_link_token}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -290,7 +290,7 @@ const JobSettings = () => {
     setSkills(updated);
   };
 
-  const assessmentUrl = job ? `https://skillgate.app/assess/${job.assessment_link_token}` : "";
+  const assessmentUrl = job ? `https://skillgate.app/r/${job.assessment_link_token}` : "";
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6 text-text-primary font-sans bg-primary min-h-screen">

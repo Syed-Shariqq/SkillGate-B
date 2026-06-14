@@ -308,7 +308,7 @@ const JobDetail = () => {
     }
   };
 
-  const assessmentUrl = job ? `https://skill-gate-b.vercel.app/assess/${job.assessment_link_token}` : "";
+  const assessmentUrl = job ? `https://skill-gate-b.vercel.app/r/${job.assessment_link_token}` : "";
 
   // Computations for stats
   const totalCandidatesCount = candidates.length;

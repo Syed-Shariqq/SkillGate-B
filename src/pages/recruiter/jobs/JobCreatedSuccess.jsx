@@ -20,7 +20,7 @@ const JobCreatedSuccess = () => {
     return null;
   }
 
-  const assessmentLink = `https://skill-gate-b.vercel.app/assess/${token}`;
+  const assessmentLink = `https://skill-gate-b.vercel.app/r/${token}`;
 
   const handleCopy = async () => {
     try {
