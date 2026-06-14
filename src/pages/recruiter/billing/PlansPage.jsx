@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 
 const PlansPage = () => {
   const navigate = useNavigate();
-  const { profile } = useContext(AuthContext);
+  const { profile, refreshProfile } = useContext(AuthContext);
 
   const [openIndex, setOpenIndex] = useState(null);
   const [upgradeLoading, setUpgradeLoading] = useState(null);
