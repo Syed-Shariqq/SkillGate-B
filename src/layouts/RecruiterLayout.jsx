@@ -205,6 +205,53 @@ const getNotifDestination = (notif) => {
   return '/dashboard';
 };
 
+const getNotifIcon = (type) => {
+  const icons = {
+    email_sent: {
+      color: '#22C55E',
+      path: 'M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 4.7-8 5.334L4 8.7V6.297l8 5.333 8-5.333V8.7Z'
+    },
+    candidate_passed: {
+      color: '#22C55E',
+      path: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm-1 14.414-3.707-3.707 1.414-1.414L11 13.586l5.293-5.293 1.414 1.414Z'
+    },
+    email_failed: {
+      color: '#EF4444',
+      path: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm0-4h-2V7h2Z'
+    },
+    candidate_failed: {
+      color: '#6B7280',
+      path: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm0-4h-2V7h2Z'
+    },
+    assessment_complete: {
+      color: '#5B6DF6',
+      path: 'M9 6V5a3 3 0 0 1 3-3h0a3 3 0 0 1 3 3v1h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Zm2 0h2V5a1 1 0 0 0-2 0v1Zm-5 5h12V8H6v3Zm0 2v5h12v-5H6Z'
+    },
+    link_limit_reached: {
+      color: '#F97316',
+      path: 'M13 2h-2v9.586l-3.293-3.293-1.414 1.414L12 15.414l5.707-5.707-1.414-1.414L13 11.586V2Zm-8 16h14v2H5v-2Z'
+    },
+  };
+
+  const fallback = {
+    color: '#6B7280',
+    path: 'M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 0 0-4 0v1.29A7 7 0 0 0 5 11v5l-1.3 1.3A1 1 0 0 0 4.4 19h15.2a1 1 0 0 0 .7-1.7L19 16Z'
+  };
+
+  const icon = icons[type] || fallback;
+
+  return (
+    <svg
+      className="h-5 w-5 shrink-0 mt-0.5"
+      viewBox="0 0 24 24"
+      fill={icon.color}
+      aria-hidden="true"
+    >
+      <path d={icon.path} />
+    </svg>
+  );
+};
+
 const RecruiterLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -506,9 +553,12 @@ const RecruiterLayout = ({ children }) => {
                               }`}
                             >
                               <div className="flex items-start gap-2">
-                                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                                  !notif.is_read ? 'bg-accent' : 'bg-transparent'
-                                }`} />
+                                <div className="relative shrink-0">
+                                  {getNotifIcon(notif.type)}
+                                  {!notif.is_read && (
+                                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-accent" />
+                                  )}
+                                </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="text-sm font-medium text-text-primary truncate">
                                     {notif.title}
