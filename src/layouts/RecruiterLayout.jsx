@@ -277,8 +277,39 @@ const RecruiterLayout = ({ children }) => {
 
     fetchLayoutData();
 
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `recruiter_id=eq.${user.id}`,
+      }, () => {
+        if (isMounted) {
+          setUnreadCount(prev => prev + 1);
+        }
+      })
+      .subscribe();
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        const { count } = await supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('recruiter_id', user.id)
+          .eq('is_read', false);
+        if (isMounted) {
+          setUnreadCount(count || 0);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       isMounted = false;
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [user?.id]);
 

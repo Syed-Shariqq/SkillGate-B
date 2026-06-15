@@ -1,3 +1,5 @@
 V2: Require email verification before assessment starts
 V2: OTP to candidate email before allowing assessment access
 V2: IP-based rate limiting on assessment starts
+V2: Resume based skill Extraction and Resume Analysis'
+V2: Smart candidate filtering 
