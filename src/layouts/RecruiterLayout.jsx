@@ -265,6 +265,8 @@ const RecruiterLayout = ({ children }) => {
   const [dismissedQuotaKeys, setDismissedQuotaKeys] = useState(() => new Set());
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [failedEmailCount, setFailedEmailCount] = useState(0);
+  const [failedEmailDismissed, setFailedEmailDismissed] = useState(false);
 
   const fullName =
     profile?.full_name || user?.user_metadata?.name || user?.email || "Recruiter";
@@ -290,7 +292,7 @@ const RecruiterLayout = ({ children }) => {
     const fetchLayoutData = async () => {
       setQuotaLoading(true);
 
-      const [quotaResult, notificationResult] = await Promise.all([
+      const [quotaResult, notificationResult, failedEmailResult] = await Promise.all([
         supabase
           .from("profiles")
           .select("assessments_used, assessments_limit")
@@ -301,6 +303,12 @@ const RecruiterLayout = ({ children }) => {
           .select("id", { count: "exact", head: true })
           .eq("recruiter_id", user.id)
           .eq("is_read", false),
+        supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('recruiter_id', user.id)
+          .eq('type', 'email_failed')
+          .eq('is_read', false)
       ]);
 
       if (!isMounted) return;
@@ -317,6 +325,13 @@ const RecruiterLayout = ({ children }) => {
         setUnreadCount(0);
       } else {
         setUnreadCount(notificationResult.count || 0);
+      }
+
+      if (failedEmailResult.error) {
+        console.error('Failed email count fetch error:', failedEmailResult.error);
+        setFailedEmailCount(0);
+      } else {
+        setFailedEmailCount(failedEmailResult.count || 0);
       }
 
       setQuotaLoading(false);
@@ -360,6 +375,7 @@ const RecruiterLayout = ({ children }) => {
     };
   }, [user?.id]);
 
+
   const quotaPercent = useMemo(() => {
     const usage = user?.id ? quotaUsage : null;
     const used = Number(usage?.assessments_used || 0);
@@ -377,6 +393,7 @@ const RecruiterLayout = ({ children }) => {
     sessionStorage.getItem(quotaStorageKey) === "true";
   const effectiveUnreadCount = user?.id ? unreadCount : 0;
   const showQuotaBanner = quotaPercent >= 80 && !quotaDismissed;
+  const showFailedEmailBanner = failedEmailCount > 0 && !failedEmailDismissed;
 
   const dismissQuotaBanner = () => {
     sessionStorage.setItem(quotaStorageKey, "true");
@@ -385,6 +402,10 @@ const RecruiterLayout = ({ children }) => {
       nextKeys.add(quotaStorageKey);
       return nextKeys;
     });
+  };
+
+  const dismissFailedEmailBanner = () => {
+    setFailedEmailDismissed(true);
   };
 
   const fetchNotifications = async () => {
@@ -431,7 +452,6 @@ const RecruiterLayout = ({ children }) => {
     navigate,
     unreadCount: effectiveUnreadCount,
   };
-
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-primary text-text-primary">
@@ -629,6 +649,37 @@ const RecruiterLayout = ({ children }) => {
                   &times;
                 </button>
               </div>
+            </div>
+          )}
+
+          {showFailedEmailBanner && (
+            <div className="flex items-center justify-between gap-4 border-b border-error/20 bg-error/10 px-4 py-3 lg:px-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <svg className="h-4 w-4 shrink-0 text-error" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm0-4h-2V7h2Z"/>
+                </svg>
+                <p className="text-sm font-medium text-error truncate">
+                  {failedEmailCount === 1
+                    ? '1 email notification failed to deliver.'
+                    : `${failedEmailCount} email notifications failed to deliver.`}
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/notifications')}
+                    className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+                  >
+                    View notifications →
+                  </button>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={dismissFailedEmailBanner}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-lg leading-none text-error transition-colors hover:bg-error/20"
+                aria-label="Dismiss failed email warning"
+              >
+                &times;
+              </button>
             </div>
           )}
 

@@ -56,7 +56,7 @@ export const getCandidateProfile = async (candidateId, uid) => {
     }
 
     const assessment = candidateData.assessments?.[0] || {};
-    const result = assessment.results?.[0] || {};
+    const result = assessment.results ?? {};
     const job = (jobsRes.data || []).find((j) => j.id === candidateData.job_id) || null;
 
     const mappedResponses = (respRes.data || []).map((resp) => {
