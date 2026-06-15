@@ -102,6 +102,7 @@ const NotificationsPage = () => {
     const { error: markError } = await markAllAsRead(user.id);
     if (!markError) {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      window.dispatchEvent(new CustomEvent('notifications-marked-read', { detail: { all: true } }));
     }
   };
 
@@ -112,6 +113,7 @@ const NotificationsPage = () => {
         setNotifications((prev) =>
           prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
         );
+        window.dispatchEvent(new CustomEvent('notifications-marked-read', { detail: { type: notif.type } }));
       }
     }
     navigate(getNotifDestination(notif));

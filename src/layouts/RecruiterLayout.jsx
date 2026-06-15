@@ -342,13 +342,31 @@ const RecruiterLayout = ({ children }) => {
     const channel = supabase
       .channel(`notifications:${user.id}`)
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'notifications',
         filter: `recruiter_id=eq.${user.id}`,
-      }, () => {
-        if (isMounted) {
-          setUnreadCount(prev => prev + 1);
+      }, async () => {
+        if (!isMounted) return;
+        const [notificationResult, failedEmailResult] = await Promise.all([
+          supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("recruiter_id", user.id)
+            .eq("is_read", false),
+          supabase
+            .from('notifications')
+            .select('id', { count: 'exact', head: true })
+            .eq('recruiter_id', user.id)
+            .eq('type', 'email_failed')
+            .eq('is_read', false)
+        ]);
+        if (!isMounted) return;
+        if (!notificationResult.error) {
+          setUnreadCount(notificationResult.count || 0);
+        }
+        if (!failedEmailResult.error) {
+          setFailedEmailCount(failedEmailResult.count || 0);
         }
       })
       .subscribe();
@@ -374,6 +392,24 @@ const RecruiterLayout = ({ children }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    const handleMarkedRead = (e) => {
+      if (e.detail?.all) {
+        setUnreadCount(0);
+        setFailedEmailCount(0);
+      } else {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+        if (e.detail?.type === 'email_failed') {
+          setFailedEmailCount((prev) => Math.max(0, prev - 1));
+        }
+      }
+    };
+    window.addEventListener("notifications-marked-read", handleMarkedRead);
+    return () => {
+      window.removeEventListener("notifications-marked-read", handleMarkedRead);
+    };
+  }, []);
 
 
   const quotaPercent = useMemo(() => {
