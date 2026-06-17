@@ -7,7 +7,9 @@ import {
   getCandidateProfile,
   updateCandidateStatus,
   saveInternalNote,
+  retryPdfGeneration,
 } from "@/services/recruiter/candidateService";
+
 
 const CandidateProfile = () => {
   const { candidateId } = useParams();
@@ -24,6 +26,7 @@ const CandidateProfile = () => {
   const [noteSaved, setNoteSaved] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const [retryLoading, setRetryLoading] = useState(false);
+  const [retryPdfLoading, setRetryPdfLoading] = useState(false);
 
   const loadProfile = async () => {
     if (!user?.id || !candidateId) return;
@@ -63,6 +66,30 @@ const CandidateProfile = () => {
       toast.error(err.message || "Failed to retry evaluation. Please try again.");
     } finally {
       setRetryLoading(false);
+    }
+  };
+
+  const handleRetryPdf = async () => {
+    if (!profileData?.assessment?.id || !profileData?.result?.id) return;
+    setRetryPdfLoading(true);
+    try {
+      const { error } = await retryPdfGeneration(
+        profileData.assessment.id,
+        profileData.result.id
+      );
+
+      if (error) {
+        throw error;
+      }
+
+
+      toast.success("PDF generation restarted!");
+      loadProfile();
+    } catch (err) {
+      console.error("Failed to retry PDF generation:", err);
+      toast.error(err.message || "Failed to retry PDF generation. Please try again.");
+    } finally {
+      setRetryPdfLoading(false);
     }
   };
 
@@ -623,6 +650,23 @@ const CandidateProfile = () => {
                   </svg>
                 )}
                 {retryLoading ? "Retrying..." : "Retry Evaluation"}
+              </button>
+            )}
+
+            {/* Retry PDF Button for Failed PDF Status */}
+            {profileData?.result?.pdf_status === "failed" && (
+              <button
+                onClick={handleRetryPdf}
+                disabled={retryPdfLoading}
+                className="w-full py-2.5 px-4 bg-accent hover:bg-accent-hover text-text-primary text-sm font-semibold rounded-lg transition-smooth cursor-pointer text-center flex items-center justify-center gap-2"
+              >
+                {retryPdfLoading && (
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+                {retryPdfLoading ? "Retrying..." : "Retry PDF"}
               </button>
             )}
 

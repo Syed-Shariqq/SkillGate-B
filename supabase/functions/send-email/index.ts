@@ -26,6 +26,7 @@ type ResultRow = {
   weaknesses: unknown;
   improvement_resources: unknown;
   pdf_url: string | null;
+  pdf_status: string | null;
   email_sent: boolean | null;
   hiring_signal: string | null;
   candidate_id: string | null;
@@ -94,6 +95,7 @@ const corsHeaders = {
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const FROM_EMAIL = "onboarding@resend.dev";
 const DASHBOARD_URL = "https://skill-gate-b.vercel.app/dashboard";
+const SITE_URL = Deno.env.get("SITE_URL") || "https://skill-gate-b.vercel.app";
 const VALID_EMAIL_TYPES: EmailType[] = [
   "candidate_result",
   "recruiter_notify",
@@ -337,6 +339,7 @@ async function fetchData(
         "weaknesses",
         "improvement_resources",
         "pdf_url",
+        "pdf_status",
         "email_sent",
         "hiring_signal",
         "candidate_id",
@@ -370,6 +373,7 @@ async function fetchData(
           "weaknesses",
           "improvement_resources",
           "pdf_url",
+          "pdf_status",
           "email_sent",
           "hiring_signal",
           "assessment_id",
@@ -526,12 +530,13 @@ function buildCandidateEmail(data: FetchedData): EmailContent {
     data.result.feedback_summary,
     "Thank you for completing the assessment.",
   );
-  const pdfUrl = safeText(data.result.pdf_url);
+  const pdfStatus = safeText(data.result.pdf_status);
+  const assessmentId = safeText(data.result.assessment_id);
   const pdfSection =
-    pdfUrl.length > 0
+    pdfStatus === "generated" && assessmentId.length > 0
       ? `<tr>
         <td style="padding:0 28px 24px 28px;">
-          <a href="${escapeAttr(pdfUrl)}" style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;color:#14B8A6;font-size:15px;line-height:1.6;font-weight:700;text-decoration:none;">Download your full report &rarr;</a>
+          <a href="${escapeAttr(`${SITE_URL}/assess/result/${assessmentId}`)}" style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;color:#14B8A6;font-size:15px;line-height:1.6;font-weight:700;text-decoration:none;">Download your full report &rarr;</a>
         </td>
       </tr>`
       : "";

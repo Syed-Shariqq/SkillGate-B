@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 interface RequestPayload {
   assessmentId: string;
   resultId: string;
+  isAutoRetry?: boolean;
 }
 
 interface ResultRow {
@@ -21,6 +22,7 @@ interface ResultRow {
   pdf_storage_path: string | null;
   pdf_generated_at: string | null;
   pdf_error: string | null;
+  pdf_generation_attempts: number | null;
 }
 
 interface CandidateRow {
@@ -39,6 +41,7 @@ interface AssessmentRow {
   time_taken_seconds: number | null;
   candidate_id: string;
   job_id: string;
+  recruiter_id: string;
 }
 
 interface FetchedData {
@@ -226,6 +229,7 @@ async function validateRequest(req: Request): Promise<RequestPayload> {
   return {
     assessmentId: body.assessmentId,
     resultId: body.resultId,
+    isAutoRetry: body.isAutoRetry === true,
   };
 }
 
@@ -252,17 +256,25 @@ function createSupabaseClient(): SupabaseClient {
 async function acquireGenerationLock(
   supabase: SupabaseClient,
   payload: RequestPayload,
+  isAutoRetry = false,
 ): Promise<boolean> {
   const now = new Date().toISOString();
   const staleCutoff = new Date(Date.now() - STALE_GENERATING_MS).toISOString();
+
+  const updates: Record<string, unknown> = {
+    pdf_status: "generating",
+    pdf_error: null,
+    pdf_generation_started_at: now,
+    updated_at: now,
+  };
+
+  if (!isAutoRetry) {
+    updates.pdf_generation_attempts = 0;
+  }
+
   const { data, error } = await supabase
     .from("results")
-    .update({
-      pdf_status: "generating",
-      pdf_error: null,
-      pdf_generation_started_at: now,
-      updated_at: now,
-    })
+    .update(updates)
     .eq("id", payload.resultId)
     .or(
       `pdf_status.is.null,pdf_status.in.(pending,failed),and(pdf_status.eq.generating,pdf_generation_started_at.lt.${staleCutoff})`,
@@ -332,7 +344,7 @@ async function fetchData(
 
   const { data: assessment, error: assessmentError } = await supabase
     .from("assessments")
-    .select("submitted_at,candidate_id,job_id")
+    .select("submitted_at,candidate_id,job_id,recruiter_id")
     .eq("id", payload.assessmentId)
     .maybeSingle<Omit<AssessmentRow, "time_taken_seconds">>();
 
@@ -929,6 +941,7 @@ serve(async (req: Request) => {
   let supabase: SupabaseClient | null = null;
   let payload: RequestPayload | null = null;
   let lockAcquired = false;
+  let data: FetchedData | null = null;
   const totalStart = performance.now();
   let htmlMs = 0;
   let pdfMs = 0;
@@ -963,12 +976,12 @@ serve(async (req: Request) => {
       return jsonResponse({ status: "already_generated" }, 200);
     }
 
-    lockAcquired = await acquireGenerationLock(supabase, payload);
+    lockAcquired = await acquireGenerationLock(supabase, payload, payload.isAutoRetry);
     if (!lockAcquired) {
       return jsonResponse({ status: "already_processing" }, 200);
     }
 
-    const data = await fetchData(supabase, payload);
+    data = await fetchData(supabase, payload);
     const htmlStart = performance.now();
     const html = buildHtmlReport(data);
     htmlMs = performance.now() - htmlStart;
@@ -1009,7 +1022,87 @@ serve(async (req: Request) => {
     console.error("[generate-pdf][error]", message);
 
     if (supabase && payload?.resultId && lockAcquired) {
-      await markPdfFailed(supabase, payload.resultId, error);
+      try {
+        const { data: resultData } = await supabase
+          .from("results")
+          .select("pdf_generation_attempts")
+          .eq("id", payload.resultId)
+          .maybeSingle();
+
+        const attempts = resultData?.pdf_generation_attempts ?? 0;
+
+        if (attempts < 1) {
+          // Increment attempts, set status to pending to clear generation lock, set pdf_error
+          await supabase
+            .from("results")
+            .update({
+              pdf_generation_attempts: attempts + 1,
+              pdf_status: "pending",
+              pdf_error: `Attempt 1 failed: ${message}. Retrying...`,
+              pdf_generation_started_at: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", payload.resultId);
+
+          logStep("retry", "scheduling auto-retry after failure", {
+            resultId: payload.resultId,
+            currentAttempt: attempts + 1,
+          });
+
+          // Wait a 2-second delay before re-invoking
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          // Re-invoke generate-pdf asynchronously (fire-and-forget)
+          supabase.functions
+            .invoke("generate-pdf", {
+              body: {
+                assessmentId: payload.assessmentId,
+                resultId: payload.resultId,
+                isAutoRetry: true,
+              },
+            })
+            .catch((err: unknown) => {
+              console.error(
+                "[generate-pdf][retry] re-invoke failed",
+                err instanceof Error ? err.message : String(err),
+              );
+            });
+        } else {
+          await markPdfFailed(supabase, payload.resultId, error);
+
+          if (data) {
+            try {
+              const recruiterId = data.assessment.recruiter_id;
+              const candidateName = data.candidate.full_name || "Candidate";
+              const jobTitle = data.job.title || "the role";
+
+              const { error: notificationError } = await supabase
+                .from("notifications")
+                .insert({
+                  recruiter_id: recruiterId,
+                  type: "pdf_generation_failed",
+                  title: "PDF report generation failed",
+                  message: `PDF generation failed for candidate "${candidateName}" (role: "${jobTitle}"). You can trigger a retry from their profile.`,
+                  assessment_id: payload.assessmentId,
+                  job_id: data.assessment.job_id,
+                  candidate_id: data.assessment.candidate_id,
+                  is_read: false,
+                });
+
+              if (notificationError) {
+                console.error("[generate-pdf][notification] failed to insert notification", notificationError);
+              } else {
+                logStep("notification", "inserted pdf_generation_failed notification");
+              }
+            } catch (notifyErr) {
+              console.error("[generate-pdf][notification] exception inserting notification", notifyErr);
+            }
+          }
+        }
+      } catch (retryErr) {
+        console.error("[generate-pdf][retry] error handling retry logic", retryErr);
+        await markPdfFailed(supabase, payload.resultId, error);
+      }
     }
 
     logStep("metrics", "PDF generation timings", {

@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import { apiClient } from "../apiClient";
+
 
 export const getCandidateProfile = async (candidateId, uid) => {
   try {
@@ -10,14 +12,15 @@ export const getCandidateProfile = async (candidateId, uid) => {
           assessments!inner(
             id, status, tab_switches, paste_attempts,
             is_flagged, completed_at, time_limit_minutes,
-            results(
-              overall_score, passed, confidence_score, confidence_label,
-              skill_scores, total_points_earned, total_points_possible,
-              time_taken_seconds, feedback_summary, executive_summary,
-              hiring_signal, hiring_rationale, strengths, weaknesses
-            )
-          )
-        `)
+           results(
+             id, overall_score, passed, confidence_score, confidence_label,
+             skill_scores, total_points_earned, total_points_possible,
+             time_taken_seconds, feedback_summary, executive_summary,
+             hiring_signal, hiring_rationale, strengths, weaknesses,
+             pdf_status, pdf_error
+           )
+         )
+       `)
         .eq("id", candidateId)
         .eq("recruiter_id", uid)
         .in("assessments.status", ["completed", "pending_review", "failed", "evaluating"])
@@ -116,6 +119,9 @@ export const getCandidateProfile = async (candidateId, uid) => {
         hiring_rationale: result.hiring_rationale,
         strengths: result.strengths,
         weaknesses: result.weaknesses,
+        id: result.id,
+        pdf_status: result.pdf_status,
+        pdf_error: result.pdf_error,
       },
       responses: mappedResponses,
       job: job
@@ -151,3 +157,23 @@ export const updateCandidateStatus = async (candidateId, uid, status) => {
 export const saveInternalNote = async (candidateId, uid, note) => {
   return { data: null, error: null };
 };
+
+export const retryPdfGeneration = async (assessmentId, resultId) => {
+  if (!assessmentId || !resultId) {
+    return {
+      data: null,
+      error: { message: "assessmentId and resultId are required" },
+    };
+  }
+
+  const response = await apiClient(
+    (supabase) =>
+      supabase.functions.invoke("generate-pdf", {
+        body: { assessmentId, resultId },
+      }),
+    { functionName: "retryPdfGeneration", params: { assessmentId, resultId } }
+  );
+
+  return { data: response.data ?? null, error: response.error };
+};
+

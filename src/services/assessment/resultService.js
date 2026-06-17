@@ -18,7 +18,7 @@ const MAX_BACKOFF_DELAY_MS = 15000;
 export const getPdfStatusLabel = (status) =>
   PDF_STATUS_LABELS[status] || PDF_STATUS_LABELS.pending;
 
-export const getPdfDownloadUrl = async (resultId) => {
+export const getPdfDownloadUrl = async (resultId, sessionToken) => {
   if (!resultId) {
     return {
       data: null,
@@ -26,20 +26,11 @@ export const getPdfDownloadUrl = async (resultId) => {
     };
   }
 
-  const { data, error } = await supabase.functions.invoke("get-pdf-url", {
-    body: { resultId },
-  });
-
-  if (error) {
-    return {
-      data: null,
-      error: {
-        message: error.message || "Unable to fetch report download URL",
-      },
-    };
-  }
-
-  return { data, error: null };
+  return invokeFunction(
+    "get-pdf-url",
+    { resultId, sessionToken },
+    { resultId }
+  );
 };
 
 /**

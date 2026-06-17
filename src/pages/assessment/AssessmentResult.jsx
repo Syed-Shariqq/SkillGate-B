@@ -12,7 +12,7 @@ import {
 
 import { getSessionFromStorage } from "@/services/assessment/assessmentService";
 
-import { getResult } from "@/services/assessment/resultService";
+import { getResult, getPdfDownloadUrl } from "@/services/assessment/resultService";
 
 import toast from "react-hot-toast";
 import { supabase } from "@/config/supabase";
@@ -348,12 +348,7 @@ export default function AssessmentResult() {
       return null;
     }
 
-    const { data, error } = await supabase.functions.invoke("get-pdf-url", {
-      body: {
-        resultId: result.id,
-        sessionToken: session.sessionToken,
-      },
-    });
+    const { data, error } = await getPdfDownloadUrl(result.id, session.sessionToken);
 
     if (error) {
       throw error;
