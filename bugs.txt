@@ -6,3 +6,13 @@ Sometimes the pages just stop at loading state many times
 
 Note: 
 Replace hardcoded values with constants/files.
+
+Bug 03:
+[Deferred] apiClient bypass — 4 direct supabase.functions.invoke() call sites skip the
+normalizeError fix (apiClient.js, fixed Stage 15.5): AssessmentResult.jsx (get-pdf-url),
+resultService.js (get-pdf-url), CandidateProfile.jsx (evaluate-responses retry),
+JobDetail.jsx (evaluate-responses retry). The evaluate-responses ones are low priority —
+they never branched on specific error codes, only generic toast on failure. The
+get-pdf-url ones are Stage 15.8 territory (PDF generation fails) — revisit when building
+that stage, since 15.8 likely needs real error-code branching for retry/fallback logic,
+which won't work through these bypassed call sites without the same fix applied.

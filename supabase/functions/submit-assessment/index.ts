@@ -24,6 +24,7 @@ type AssessmentRow = {
 type SubmittedAssessmentRow = {
   id: string;
   submitted_at: string;
+  recruiter_id: string;
 };
 
 const uuidPattern =
@@ -210,7 +211,7 @@ Deno.serve(async (req: Request) => {
       .eq("id", assessmentId)
       .eq("candidate_id", token.candidateId)
       .in("status", SUBMITTABLE_STATUSES)
-      .select("id,submitted_at")
+      .select("id,submitted_at,recruiter_id")
       .returns<SubmittedAssessmentRow[]>();
 
     if (submitError) throw submitError;
@@ -219,6 +220,25 @@ Deno.serve(async (req: Request) => {
 
     if (submittedAssessment) {
       logger.info("assessment_submitted", { assessmentId });
+      
+      // Increment recruiter's assessments_used atomically
+      const { error: incrementError } = await supabase.rpc(
+        "increment_assessments_used",
+        { p_recruiter_id: submittedAssessment.recruiter_id }
+      );
+      if (incrementError) {
+        logger.error("increment_assessments_used_failed", {
+          assessmentId,
+          recruiterId: submittedAssessment.recruiter_id,
+          error: incrementError,
+        });
+      } else {
+        logger.info("increment_assessments_used_success", {
+          assessmentId,
+          recruiterId: submittedAssessment.recruiter_id,
+        });
+      }
+
       scheduleEvaluation(assessmentId, logger);
 
       return formatSuccess({

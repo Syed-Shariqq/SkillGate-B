@@ -12,6 +12,7 @@ type JsonRecord = Record<string, unknown>;
 
 type JobRow = {
   id: string;
+  recruiter_id: string;
   title: string;
   company_name: string;
   description: string;
@@ -67,6 +68,7 @@ function isLimitReached(job: JobRow): boolean {
 function buildJobDto(job: JobRow): JsonRecord {
   return {
     id: job.id,
+    recruiter_id: job.recruiter_id,
     title: job.title,
     company_name: job.company_name,
     description: job.description,
@@ -117,7 +119,7 @@ Deno.serve(async (req: Request) => {
     const { data: job, error } = await supabase
       .from("jobs")
       .select(
-        "id,title,company_name,description,skills,min_score_threshold,time_limit_minutes,is_active,link_expires_at,link_max_uses,link_use_count,allow_retakes",
+        "id,recruiter_id,title,company_name,description,skills,min_score_threshold,time_limit_minutes,is_active,link_expires_at,link_max_uses,link_use_count,allow_retakes",
       )
       .eq("assessment_link_token", token)
       .maybeSingle<JobRow>();
