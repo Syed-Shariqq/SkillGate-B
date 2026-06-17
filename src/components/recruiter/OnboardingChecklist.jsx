@@ -1,10 +1,10 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthContext from "../../context/AuthContext";
+import AuthContext from "@/context/AuthContext";
 import {
   getOnboardingStatus,
   markOnboardingComplete,
-} from "../../services/dashboardService";
+} from "@/services/recruiter/dashboardService";
 import SkeletonCard from "../ui/SkeletonCard";
 
 const STEP_COUNT = 3;

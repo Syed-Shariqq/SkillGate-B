@@ -1,9 +1,9 @@
 import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthContext from "../../../context/AuthContext";
-import JobCard from "../../../components/recruiter/JobCard";
-import EmptyState from "../../../components/ui/EmptyState";
-import { getAllJobs } from "../../../services/jobsService";
+import AuthContext from "@/context/AuthContext";
+import JobCard from "@/components/recruiter/JobCard";
+import EmptyState from "@/components/ui/EmptyState";
+import { getAllJobs } from "@/services/recruiter/jobsService";
 
 const JOBS_PER_PAGE = 12;
 

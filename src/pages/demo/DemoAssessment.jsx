@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import Badge from "../../components/ui/Badge";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
+import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 
 const TOTAL_SECONDS = 8 * 60;
 

@@ -1,14 +1,14 @@
 import { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import AuthContext from "../../context/AuthContext";
-import JobCard from "../../components/recruiter/JobCard";
-import OnboardingChecklist from "../../components/recruiter/OnboardingChecklist";
-import SkeletonCard from "../../components/ui/SkeletonCard";
+import AuthContext from "@/context/AuthContext";
+import JobCard from "@/components/recruiter/JobCard";
+import OnboardingChecklist from "@/components/recruiter/OnboardingChecklist";
+import SkeletonCard from "@/components/ui/SkeletonCard";
 import {
   getDashboardStats,
   getRecentActivity,
   getRecentJobs,
-} from "../../services/dashboardService";
+} from "@/services/recruiter/dashboardService";
 
 const DASH = "\u2014";
 

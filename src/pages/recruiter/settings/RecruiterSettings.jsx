@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import AuthContext from "../../../context/AuthContext";
+import AuthContext from "@/context/AuthContext";
 import {
   getRecruiterProfile,
   updateAccountSettings,
@@ -8,7 +8,7 @@ import {
   updatePassword,
   uploadCompanyLogo,
   deleteAccount,
-} from "../../../services/recruiterSettingsService";
+} from "@/services/recruiter/recruiterSettingsService";
 
 const RecruiterSettings = () => {
   const { user } = useContext(AuthContext);

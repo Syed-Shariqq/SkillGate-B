@@ -1,10 +1,10 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import AuthContext from "../context/AuthContext";
-import { supabase } from "../config/supabase";
-import LoadingSpinner from "../components/ui/LoadingSpinner";
-import SkeletonCard from "../components/ui/SkeletonCard";
-import { getRecentNotifications, markAllAsRead, markOneAsRead } from '../services/notificationService';
+import AuthContext from "@/context/AuthContext";
+import { supabase } from "@/config/supabase";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import SkeletonCard from "@/components/ui/SkeletonCard";
+import { getRecentNotifications, markAllAsRead, markOneAsRead } from '@/services/recruiter/notificationService';
 
 const navItems = [
   {

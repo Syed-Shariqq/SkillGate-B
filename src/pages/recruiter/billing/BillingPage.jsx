@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthContext from "../../../context/AuthContext";
-import { getBillingInfo } from "../../../services/billingService";
+import AuthContext from "@/context/AuthContext";
+import { getBillingInfo } from "@/services/recruiter/billingService";
 import toast from "react-hot-toast";
 
 const BillingPage = () => {

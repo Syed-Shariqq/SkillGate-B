@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase'
+import { supabase } from '@/config/supabase'
 
 const SESSION_EXPIRED_CODE = 'PGRST301'
 const NO_ROWS_CODE = 'PGRST116'

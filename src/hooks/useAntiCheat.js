@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
-import { recordPasteAttempt, recordTabSwitch } from '../services/assessment/responseService'
+import { recordPasteAttempt, recordTabSwitch } from '@/services/assessment/responseService'
 
 export const useAntiCheat = ({ assessmentId, enabled = true }) => {
   const [tabSwitchCount, setTabSwitchCount] = useState(0)

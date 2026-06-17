@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import AuthContext from "../../../context/AuthContext";
-import CandidateRow from "../../../components/recruiter/CandidateRow";
-import UpgradeBanner from "../../../components/recruiter/UpgradeBanner";
+import AuthContext from "@/context/AuthContext";
+import CandidateRow from "@/components/recruiter/CandidateRow";
+import UpgradeBanner from "@/components/recruiter/UpgradeBanner";
 import {
   getJobById,
   getJobCandidates,
@@ -10,7 +10,7 @@ import {
   updateCandidateStatus,
   bulkUpdateCandidateStatus,
   exportCandidatesCSV,
-} from "../../../services/jobsService";
+} from "@/services/recruiter/jobsService";
 
 const JobDetail = () => {
   const { jobId } = useParams();

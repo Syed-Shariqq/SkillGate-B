@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getSessionFromStorage } from '../../services/assessment/assessmentService'
-import { pollForResult } from '../../services/assessment/resultService'
+import { getSessionFromStorage } from '@/services/assessment/assessmentService'
+import { pollForResult } from '@/services/assessment/resultService'
 
 export default function AssessmentSubmitted() {
   const { token } = useParams()

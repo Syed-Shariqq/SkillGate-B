@@ -1,6 +1,6 @@
 import React from 'react'
-import MCQQuestion from '../../../components/assessment/MCQQuestion'
-import TextQuestion from '../../../components/assessment/TextQuestion'
+import MCQQuestion from '@/components/assessment/MCQQuestion'
+import TextQuestion from '@/components/assessment/TextQuestion'
 
 export default function QuestionContainer({
   question,

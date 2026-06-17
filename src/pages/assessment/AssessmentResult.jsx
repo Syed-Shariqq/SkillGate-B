@@ -10,12 +10,12 @@ import {
   Tooltip,
 } from "recharts";
 
-import { getSessionFromStorage } from "../../services/assessment/assessmentService";
+import { getSessionFromStorage } from "@/services/assessment/assessmentService";
 
-import { getResult } from "../../services/assessment/resultService";
+import { getResult } from "@/services/assessment/resultService";
 
 import toast from "react-hot-toast";
-import { supabase } from "../../config/supabase";
+import { supabase } from "@/config/supabase";
 
 export default function AssessmentResult() {
   const { assessmentId } = useParams();

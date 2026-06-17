@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import skillGateLogo from "../assets/skillGate-logo.png";
+import skillGateLogo from "@/assets/skillGate-logo.png";
 
 const navLinks = [
   { label: "Product", href: "#product" },

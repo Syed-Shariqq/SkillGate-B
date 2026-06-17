@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthContext from "../../../context/AuthContext";
-import { supabase } from "../../../config/supabase";
+import AuthContext from "@/context/AuthContext";
+import { supabase } from "@/config/supabase";
 import toast from "react-hot-toast";
 
 const PlansPage = () => {

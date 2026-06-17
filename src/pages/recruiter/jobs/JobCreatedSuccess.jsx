@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { useAuth } from "../../../hooks/useAuth";
-import UpgradeBanner from "../../../components/recruiter/UpgradeBanner";
+import { useAuth } from "@/hooks/useAuth";
+import UpgradeBanner from "@/components/recruiter/UpgradeBanner";
 
 const JobCreatedSuccess = () => {
   const location = useLocation();

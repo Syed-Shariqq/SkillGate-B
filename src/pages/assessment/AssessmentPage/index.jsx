@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { useAssessmentTimer } from "../../../hooks/useAssessmentTimer";
-import { useAntiCheat } from "../../../hooks/useAntiCheat";
+import { useAssessmentTimer } from "../@/hooks/useAssessmentTimer";
+import { useAntiCheat } from "../@/hooks/useAntiCheat";
 
 import {
   getSessionFromStorage,
   getAssessment,
   markStarted,
-} from "../../../services/assessment/assessmentService";
+} from "../@/services/assessment/assessmentService";
 
 import {
   saveResponse,
   submitAssessment,
-} from "../../../services/assessment/responseService";
+} from "../@/services/assessment/responseService";
 
-import ProgressDots from "../../../components/assessment/ProgressDots";
+import ProgressDots from "../@/components/assessment/ProgressDots";
 
 import AssessmentHeader from "./AssessmentHeader";
 import NavigationControls from "./NavigationControls";

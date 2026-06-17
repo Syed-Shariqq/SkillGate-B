@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
-import Input from "../../components/ui/Input";
-import skillGateLogo from "../../assets/skillGate-logo.png";
-import { useAuth } from "../../hooks/useAuth";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
+import skillGateLogo from "@/assets/skillGate-logo.png";
+import { useAuth } from "@/hooks/useAuth";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

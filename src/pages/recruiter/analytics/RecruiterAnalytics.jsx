@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import AuthContext from '../../../context/AuthContext';
-import { getAnalyticsData, getJobsList } from '../../../services/analyticsService';
+import AuthContext from '@/context/AuthContext';
+import { getAnalyticsData, getJobsList } from '@/services/recruiter/analyticsService';
 import {
   BarChart,
   Bar,

@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthContext from "../../../context/AuthContext";
-import { saveJob, generateToken } from "../../../services/createJobService";
+import AuthContext from "@/context/AuthContext";
+import { saveJob, generateToken } from "@/services/recruiter/createJobService";
 
 const CreateJob = () => {
   const { user, profile } = useContext(AuthContext);

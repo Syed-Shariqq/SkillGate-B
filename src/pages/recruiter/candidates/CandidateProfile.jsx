@@ -1,11 +1,11 @@
 import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import AuthContext from "../../../context/AuthContext";
+import AuthContext from "@/context/AuthContext";
 import {
   getCandidateProfile,
   updateCandidateStatus,
   saveInternalNote,
-} from "../../../services/candidateService";
+} from "@/services/recruiter/candidateService";
 
 const CandidateProfile = () => {
   const { candidateId } = useParams();

@@ -1,14 +1,14 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import AuthContext from "../../../context/AuthContext";
-import UpgradeBanner from "../../../components/recruiter/UpgradeBanner";
+import AuthContext from "@/context/AuthContext";
+import UpgradeBanner from "@/components/recruiter/UpgradeBanner";
 import {
   getJobSettings,
   updateJobSettings,
   resetAssessmentLink,
   deactivateJob,
   deleteJob,
-} from "../../../services/jobSettingsService";
+} from "@/services/recruiter/jobSettingsService";
 
 const JobSettings = () => {
   const { jobId } = useParams();

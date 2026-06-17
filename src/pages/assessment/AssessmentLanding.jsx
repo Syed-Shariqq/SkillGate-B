@@ -1,18 +1,12 @@
-// Run in Supabase SQL editor:
-// CREATE POLICY "Public can read recruiter limit for assessment check"
-// ON profiles FOR SELECT
-// USING (true);
-// TODO: Restrict this policy to only expose assessments_limit and assessments_used to prevent exposing sensitive details.
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../config/supabase";
+import { supabase } from "@/config/supabase";
 
 import {
   getSessionFromStorage,
   getJobByToken,
   startAssessment,
-} from "../../services/assessment/assessmentService";
+} from "@/services/assessment/assessmentService";
 
 import toast from "react-hot-toast";
 

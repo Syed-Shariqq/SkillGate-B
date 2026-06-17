@@ -1,5 +1,5 @@
 import React from 'react'
-import AssessmentTimer from '../../../components/assessment/AssessmentTimer'
+import AssessmentTimer from '@/components/assessment/AssessmentTimer'
 
 export default function AssessmentHeader({
   isAutosaving,

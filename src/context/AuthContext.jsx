@@ -1,5 +1,5 @@
 import { createContext, useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "../config/supabase";
+import { supabase } from "@/config/supabase";
 import {
   getCurrentUser,
   getProfile,
@@ -7,7 +7,7 @@ import {
   logout as logoutService,
   register as registerService,
   updateCompanyDetails as updateCompanyDetailsService,
-} from "../services/auth/authService";
+} from "@/services/auth/authService";
 
 const AuthContext = createContext();
 
