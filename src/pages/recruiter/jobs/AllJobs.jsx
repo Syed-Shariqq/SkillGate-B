@@ -157,7 +157,7 @@ const AllJobs = () => {
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
-                  className={`px-4 py-2 text-sm font-medium transition-smooth border-b-2 -mb-[2px] ${
+                  className={`px-4 py-2 text-sm font-medium transition-smooth border-b-2 -mb-0.5 ${
                     isTabActive
                       ? "border-accent text-accent"
                       : "border-transparent text-text-secondary hover:text-text-primary"

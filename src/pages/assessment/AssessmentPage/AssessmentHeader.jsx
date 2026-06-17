@@ -3,6 +3,8 @@ import AssessmentTimer from '@/components/assessment/AssessmentTimer'
 
 export default function AssessmentHeader({
   isAutosaving,
+  saveStatus,
+  pendingCount = 0,
   formatted,
   urgency,
   isExpired,
@@ -47,7 +49,7 @@ export default function AssessmentHeader({
 
         {/* Autosave indicator */}
         <div className="hidden md:flex items-center gap-1.5 select-none">
-          {isAutosaving ? (
+          {saveStatus === "saving" ? (
             <>
               {/* Spinner SVG */}
               <svg
@@ -64,6 +66,48 @@ export default function AssessmentHeader({
                 <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeLinecap="round" />
               </svg>
               <span className="font-mono text-xs text-text-tertiary">Saving...</span>
+            </>
+          ) : saveStatus === "saved" ? (
+            <>
+              {/* Check SVG */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-3 h-3 text-success shrink-0"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span className="font-mono text-xs text-text-tertiary">Saved</span>
+            </>
+          ) : saveStatus === "offline" ? (
+            <>
+              {/* Warning Icon SVG */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-3 h-3 text-warning shrink-0"
+              >
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span className="font-mono text-xs text-warning">
+                Offline — {pendingCount} pending
+              </span>
             </>
           ) : (
             <>

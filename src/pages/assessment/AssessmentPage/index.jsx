@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { useAssessmentTimer } from "../@/hooks/useAssessmentTimer";
-import { useAntiCheat } from "../@/hooks/useAntiCheat";
+import { useAssessmentTimer } from "@/hooks/useAssessmentTimer";
+import { useAntiCheat } from "@/hooks/useAntiCheat";
 
 import {
   getSessionFromStorage,
   getAssessment,
   markStarted,
-} from "../@/services/assessment/assessmentService";
+} from "@/services/assessment/assessmentService";
 
 import {
   saveResponse,
   submitAssessment,
-} from "../@/services/assessment/responseService";
+} from "@/services/assessment/responseService";
 
-import ProgressDots from "../@/components/assessment/ProgressDots";
+import ProgressDots from "@/components/assessment/ProgressDots";
 
 import AssessmentHeader from "./AssessmentHeader";
 import NavigationControls from "./NavigationControls";
@@ -35,6 +35,8 @@ export default function AssessmentPage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [isAutosaving, setIsAutosaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(() => typeof navigator !== "undefined" && !navigator.onLine ? "offline" : null);
+  const [pendingCount, setPendingCount] = useState(0);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -47,8 +49,10 @@ export default function AssessmentPage() {
   const autosaveIntervalRef = useRef(null);
   const debounceSaveRef = useRef(null);
   const latestAnswersRef = useRef({});
-  const saveVersionRef = useRef(0);
+  const saveVersionsRef = useRef({});
   const pendingSubmitRef = useRef(false);
+  const activeSavesRef = useRef(0);
+  const savedTimeoutRef = useRef(null);
 
   // Avoid stale closures in timers and intervals
   const currentIndexRef = useRef(0);
@@ -99,17 +103,135 @@ export default function AssessmentPage() {
     [session],
   );
 
+  // Helper to get pending queue from localStorage
+  const getPendingQueue = useCallback(() => {
+    if (!session?.assessmentId) return [];
+    const raw = localStorage.getItem(`skillgate_pending_saves_${session.assessmentId}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch (e) {
+        // ignore safely
+      }
+    }
+    return [];
+  }, [session]);
+
+  // Helper to save pending queue to localStorage and update state
+  const savePendingQueue = useCallback((queue) => {
+    if (!session?.assessmentId) return;
+    localStorage.setItem(`skillgate_pending_saves_${session.assessmentId}`, JSON.stringify(queue));
+    setPendingCount(queue.length);
+  }, [session]);
+
+  // Helper to enqueue a pending save
+  const enqueuePendingSave = useCallback((questionId, answer) => {
+    const queue = getPendingQueue();
+    const newEntry = {
+      questionId,
+      answer,
+      timeTaken: 0,
+      queuedAt: new Date().toISOString()
+    };
+    const index = queue.findIndex(item => item.questionId === questionId);
+    if (index !== -1) {
+      queue[index] = newEntry;
+    } else {
+      queue.push(newEntry);
+    }
+    savePendingQueue(queue);
+  }, [getPendingQueue, savePendingQueue]);
+
+  // Helper to dequeue a pending save
+  const dequeuePendingSave = useCallback((questionId) => {
+    const queue = getPendingQueue();
+    const filtered = queue.filter(item => item.questionId !== questionId);
+    if (filtered.length !== queue.length) {
+      savePendingQueue(filtered);
+    }
+  }, [getPendingQueue, savePendingQueue]);
+
+  const isFlushingRef = useRef(false);
+
+  // Sequentially attempt saving pending responses
+  const flushPendingQueue = useCallback(async (activeSession) => {
+    const sess = activeSession || session;
+    if (!sess?.assessmentId) return;
+    if (isFlushingRef.current) return;
+    isFlushingRef.current = true;
+
+    try {
+      const queue = getPendingQueue();
+
+      if (queue.length === 0) {
+        isFlushingRef.current = false;
+        return;
+      }
+
+      toast("Reconnected — syncing answers...");
+      setSaveStatus("saving");
+
+      for (const entry of queue) {
+        if (!mountedRef.current) break;
+
+        const { error } = await saveResponse({
+          assessmentId: sess.assessmentId,
+          questionId: entry.questionId,
+          answer: entry.answer ?? "",
+          timeTaken: entry.timeTaken ?? 0,
+        });
+
+        if (!mountedRef.current) break;
+
+        if (!error) {
+          dequeuePendingSave(entry.questionId);
+        }
+      }
+
+      if (mountedRef.current) {
+        const finalQueue = getPendingQueue();
+        if (finalQueue.length === 0) {
+          toast("All synced");
+          setSaveStatus("saved");
+          if (savedTimeoutRef.current) {
+            clearTimeout(savedTimeoutRef.current);
+          }
+          savedTimeoutRef.current = setTimeout(() => {
+            if (mountedRef.current && activeSavesRef.current === 0 && getPendingQueue().length === 0) {
+              setSaveStatus(prev => prev === "saved" ? null : prev);
+            }
+          }, 2000);
+        } else {
+          setSaveStatus("offline");
+        }
+      }
+    } catch (err) {
+      console.error("Error flushing pending saves:", err);
+    } finally {
+      isFlushingRef.current = false;
+    }
+  }, [session, getPendingQueue, dequeuePendingSave]);
+
   // Save Response to Backend
   const triggerSaveResponse = useCallback(
     (questionId, val) => {
       if (!session?.assessmentId) return;
 
-      saveVersionRef.current += 1;
-      const currentVersion = saveVersionRef.current;
+      if (!saveVersionsRef.current[questionId]) {
+        saveVersionsRef.current[questionId] = 0;
+      }
+      saveVersionsRef.current[questionId] += 1;
+      const currentVersion = saveVersionsRef.current[questionId];
 
       const executeSave = async (isRetry = false) => {
-        if (!mountedRef.current || currentVersion < saveVersionRef.current)
+        if (!mountedRef.current || currentVersion < saveVersionsRef.current[questionId])
           return;
+
+        activeSavesRef.current += 1;
+        setSaveStatus("saving");
 
         const { error } = await saveResponse({
           assessmentId: session.assessmentId,
@@ -118,21 +240,48 @@ export default function AssessmentPage() {
           timeTaken: 0,
         });
 
-        if (!mountedRef.current || currentVersion < saveVersionRef.current)
+        if (!mountedRef.current) {
+          activeSavesRef.current = Math.max(0, activeSavesRef.current - 1);
           return;
+        }
+
+        activeSavesRef.current = Math.max(0, activeSavesRef.current - 1);
 
         if (error) {
+          if (currentVersion < saveVersionsRef.current[questionId]) {
+            return;
+          }
+
           if (!isRetry) {
             setTimeout(() => {
               executeSave(true);
             }, 2000);
+          } else {
+            enqueuePendingSave(questionId, val ?? "");
+            setSaveStatus("offline");
+          }
+        } else {
+          dequeuePendingSave(questionId);
+
+          if (currentVersion >= saveVersionsRef.current[questionId]) {
+            if (activeSavesRef.current === 0) {
+              setSaveStatus("saved");
+              if (savedTimeoutRef.current) {
+                clearTimeout(savedTimeoutRef.current);
+              }
+              savedTimeoutRef.current = setTimeout(() => {
+                if (mountedRef.current && activeSavesRef.current === 0 && getPendingQueue().length === 0) {
+                  setSaveStatus(prev => prev === "saved" ? null : prev);
+                }
+              }, 2000);
+            }
           }
         }
       };
 
       executeSave(false);
     },
-    [session],
+    [session, enqueuePendingSave, dequeuePendingSave, getPendingQueue],
   );
 
   // Do Submit Action
@@ -158,6 +307,7 @@ export default function AssessmentPage() {
     localStorage.removeItem(`skillgate_answers_${session.assessmentId}`);
     localStorage.removeItem(`skillgate_index_${session.assessmentId}`);
     localStorage.removeItem(`skillgate_flags_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_pending_saves_${session.assessmentId}`);
 
     navigate(`/assess/${token}/submitted`, { replace: true });
   }, [session, token, navigate]);
@@ -377,6 +527,19 @@ export default function AssessmentPage() {
           markStarted(assessmentId, sessionToken);
         }
 
+        // Initialize pendingCount
+        const rawPending = localStorage.getItem(`skillgate_pending_saves_${assessmentId}`);
+        let initialPendingLength = 0;
+        if (rawPending) {
+          try {
+            const parsed = JSON.parse(rawPending);
+            if (Array.isArray(parsed)) {
+              initialPendingLength = parsed.length;
+            }
+          } catch (e) {}
+        }
+        setPendingCount(initialPendingLength);
+
         // Handle Polling if started_at is null
         if (!assessment?.started_at) {
           let elapsedPollTime = 0;
@@ -386,6 +549,9 @@ export default function AssessmentPage() {
               clearInterval(pollInterval);
               if (mountedRef.current) {
                 setIsLoading(false);
+                if (initialPendingLength > 0) {
+                  flushPendingQueue(sessionData);
+                }
               }
               return;
             }
@@ -400,10 +566,16 @@ export default function AssessmentPage() {
               setAssessmentData(pollRes.data.assessment);
               clearInterval(pollInterval);
               setIsLoading(false);
+              if (initialPendingLength > 0) {
+                flushPendingQueue(sessionData);
+              }
             }
           }, 2000);
         } else {
           setIsLoading(false);
+          if (initialPendingLength > 0) {
+            flushPendingQueue(sessionData);
+          }
         }
       } catch (err) {
         if (!mountedRef.current) return;
@@ -428,8 +600,32 @@ export default function AssessmentPage() {
       if (debounceSaveRef.current) {
         clearTimeout(debounceSaveRef.current);
       }
+      if (savedTimeoutRef.current) {
+        clearTimeout(savedTimeoutRef.current);
+      }
     };
   }, []);
+
+  // Handle online/offline events
+  useEffect(() => {
+    if (!session?.assessmentId) return;
+
+    const handleOnline = () => {
+      flushPendingQueue();
+    };
+
+    const handleOffline = () => {
+      setSaveStatus("offline");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [session, flushPendingQueue]);
 
   // Periodic Save (30000ms interval)
   useEffect(() => {
@@ -587,6 +783,8 @@ export default function AssessmentPage() {
       {/* Sticky Header */}
       <AssessmentHeader
         isAutosaving={isAutosaving}
+        saveStatus={saveStatus}
+        pendingCount={pendingCount}
         formatted={timer.formatted}
         urgency={timer.urgency}
         isExpired={timer.isExpired}
