@@ -20,7 +20,7 @@ export const getCandidateProfile = async (candidateId, uid) => {
         `)
         .eq("id", candidateId)
         .eq("recruiter_id", uid)
-        .eq("assessments.status", "completed")
+        .in("assessments.status", ["completed", "pending_review", "failed", "evaluating"])
         .maybeSingle(),
       supabase
         .from("responses")
@@ -56,7 +56,7 @@ export const getCandidateProfile = async (candidateId, uid) => {
     }
 
     const assessment = candidateData.assessments?.[0] || {};
-    const result = assessment.results ?? {};
+    const result = Array.isArray(assessment.results) ? (assessment.results[0] || {}) : (assessment.results || {});
     const job = (jobsRes.data || []).find((j) => j.id === candidateData.job_id) || null;
 
     const mappedResponses = (respRes.data || []).map((resp) => {
@@ -95,6 +95,7 @@ export const getCandidateProfile = async (candidateId, uid) => {
       },
       assessment: {
         id: assessment.id,
+        status: assessment.status,
         tab_switches: assessment.tab_switches,
         paste_attempts: assessment.paste_attempts,
         is_flagged: assessment.is_flagged,

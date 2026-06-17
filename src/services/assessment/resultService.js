@@ -11,7 +11,7 @@ const PDF_STATUS_LABELS = {
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const TERMINAL_RESULT_STATUSES = new Set(["completed", "failed"]);
+const TERMINAL_RESULT_STATUSES = new Set(["completed", "failed", "pending_review"]);
 const RETRYABLE_ERROR_DELAY_MS = 2000;
 const MAX_BACKOFF_DELAY_MS = 15000;
 
@@ -247,6 +247,16 @@ export const pollForResult = async (assessmentId, options = 15) => {
           error: {
             message: "Evaluation failed",
             code: "EVALUATION_FAILED",
+          },
+        };
+      }
+
+      if (result.data.status === "pending_review") {
+        return {
+          data: null,
+          error: {
+            message: "Results delayed",
+            code: "EVALUATION_DELAYED",
           },
         };
       }

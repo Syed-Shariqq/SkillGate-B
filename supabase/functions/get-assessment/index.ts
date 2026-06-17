@@ -21,6 +21,7 @@ type AssessmentRow = {
   started_at: string | null;
   submitted_at: string | null;
   time_limit_minutes: number;
+  attempt_number: number | null;
 };
 
 type QuestionRow = {
@@ -144,7 +145,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: assessment, error: assessmentError } = await supabase
       .from("assessments")
-      .select("id,candidate_id,status,started_at,submitted_at,time_limit_minutes")
+      .select("id,candidate_id,status,started_at,submitted_at,time_limit_minutes,attempt_number")
       .eq("id", assessmentId)
       .eq("candidate_id", token.candidateId)
       .maybeSingle<AssessmentRow>();
@@ -154,6 +155,15 @@ Deno.serve(async (req: Request) => {
     if (!assessment) {
       logger.warn("assessment_not_found");
       return formatError("ASSESSMENT_NOT_FOUND", "Assessment not found", 404);
+    }
+
+    const { count, error: countError } = await supabase
+      .from("responses")
+      .select("*", { count: "exact", head: true })
+      .eq("assessment_id", assessmentId);
+
+    if (countError) {
+      logger.warn("responses_count_failed", { error: countError.message });
     }
 
     const { data: questions, error: questionsError } = await supabase
@@ -174,6 +184,8 @@ Deno.serve(async (req: Request) => {
         started_at: assessment.started_at,
         submitted_at: assessment.submitted_at,
         time_limit_minutes: assessment.time_limit_minutes,
+        attempt_number: assessment.attempt_number ?? 1,
+        has_responses: (count ?? 0) > 0,
       },
       questions: (questions ?? []).map((question: QuestionRow) => ({
         id: question.id,

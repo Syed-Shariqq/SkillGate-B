@@ -3,12 +3,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 type SupabaseClient = ReturnType<typeof createClient>;
 type JsonRecord = Record<string, unknown>;
-type EmailType = "candidate_result" | "recruiter_notify" | "both";
+type EmailType =
+  | "candidate_result"
+  | "recruiter_notify"
+  | "both"
+  | "pending_review";
 type SendTarget = "candidate" | "recruiter";
 
 type RequestPayload = {
   assessmentId: string;
-  resultId: string;
+  resultId?: string;
   type: EmailType;
 };
 
@@ -94,6 +98,7 @@ const VALID_EMAIL_TYPES: EmailType[] = [
   "candidate_result",
   "recruiter_notify",
   "both",
+  "pending_review",
 ];
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -175,9 +180,12 @@ function getSkillScores(value: unknown): JsonRecord {
 
 function canFallbackToAssessmentLinks(message: string): boolean {
   const normalized = message.toLowerCase();
-  return (normalized.includes("candidate_id") || normalized.includes("job_id")) &&
-    (normalized.includes("results") || normalized.includes("schema cache") ||
-      normalized.includes("column"));
+  return (
+    (normalized.includes("candidate_id") || normalized.includes("job_id")) &&
+    (normalized.includes("results") ||
+      normalized.includes("schema cache") ||
+      normalized.includes("column"))
+  );
 }
 
 function buildSkillRows(skillScores: unknown): string {
@@ -278,10 +286,6 @@ async function validateRequest(req: Request): Promise<RequestPayload> {
     throw new Error("assessmentId is required");
   }
 
-  if (!("resultId" in body)) {
-    throw new Error("resultId is required");
-  }
-
   if (!("type" in body)) {
     throw new Error("type is required");
   }
@@ -290,19 +294,25 @@ async function validateRequest(req: Request): Promise<RequestPayload> {
     throw new Error("assessmentId must be a valid UUID");
   }
 
-  if (!isValidUuid(body.resultId)) {
-    throw new Error("resultId must be a valid UUID");
-  }
-
   if (!isValidEmailType(body.type)) {
     throw new Error(
-      "type must be candidate_result, recruiter_notify, or both",
+      "type must be candidate_result, recruiter_notify, both, or pending_review",
     );
+  }
+
+  if (body.type !== "pending_review") {
+    if (!("resultId" in body)) {
+      throw new Error("resultId is required");
+    }
+    if (!isValidUuid(body.resultId)) {
+      throw new Error("resultId must be a valid UUID");
+    }
   }
 
   return {
     assessmentId: body.assessmentId,
-    resultId: body.resultId,
+    resultId:
+      body.type !== "pending_review" ? (body.resultId as string) : undefined,
     type: body.type,
   };
 }
@@ -517,13 +527,14 @@ function buildCandidateEmail(data: FetchedData): EmailContent {
     "Thank you for completing the assessment.",
   );
   const pdfUrl = safeText(data.result.pdf_url);
-  const pdfSection = pdfUrl.length > 0
-    ? `<tr>
+  const pdfSection =
+    pdfUrl.length > 0
+      ? `<tr>
         <td style="padding:0 28px 24px 28px;">
           <a href="${escapeAttr(pdfUrl)}" style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;color:#14B8A6;font-size:15px;line-height:1.6;font-weight:700;text-decoration:none;">Download your full report &rarr;</a>
         </td>
       </tr>`
-    : "";
+      : "";
 
   const content = `${buildHeader()}
   <tr>
@@ -629,7 +640,10 @@ function buildRecruiterEmail(data: FetchedData): EmailContent {
 }
 
 async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
-  logStep("send", "sending email", { to: payload.to, subject: payload.subject });
+  logStep("send", "sending email", {
+    to: payload.to,
+    subject: payload.subject,
+  });
 
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   if (!resendApiKey) {
@@ -679,10 +693,10 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
     }
 
     if (response.ok) {
-      const providerMessageId = isRecord(responseBody) &&
-          typeof responseBody.id === "string"
-        ? responseBody.id
-        : undefined;
+      const providerMessageId =
+        isRecord(responseBody) && typeof responseBody.id === "string"
+          ? responseBody.id
+          : undefined;
 
       return {
         success: true,
@@ -691,10 +705,10 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
       };
     }
 
-    const errorMessage = isRecord(responseBody) &&
-        typeof responseBody.message === "string"
-      ? responseBody.message
-      : responseText || `Resend returned HTTP ${response.status}`;
+    const errorMessage =
+      isRecord(responseBody) && typeof responseBody.message === "string"
+        ? responseBody.message
+        : responseText || `Resend returned HTTP ${response.status}`;
 
     return {
       success: false,
@@ -707,8 +721,8 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
       error: didTimeout
         ? "timeout"
         : `network_error: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+            error instanceof Error ? error.message : String(error)
+          }`,
     };
   } finally {
     clearTimeout(timeoutId);
@@ -732,9 +746,11 @@ function isRetryableSendResult(result: EmailSendResult): boolean {
     return true;
   }
 
-  return result.error === "timeout" ||
+  return (
+    result.error === "timeout" ||
     (typeof result.error === "string" &&
-      result.error.startsWith("network_error:"));
+      result.error.startsWith("network_error:"))
+  );
 }
 
 function delay(ms: number): Promise<void> {
@@ -768,23 +784,19 @@ async function insertNotification(
 
   const candidateName = safeText(data.candidate.full_name, "Candidate");
   const isSuccess = kind === "success";
-  const { error } = await supabase
-    .from("notifications")
-    .insert({
-      recruiter_id: data.job.recruiter_id,
-      candidate_id: data.result.candidate_id,
-      job_id: data.result.job_id,
-      assessment_id: data.result.assessment_id,
-      type: isSuccess ? "email_sent" : "email_failed",
-      title: isSuccess
-        ? "Email sent successfully"
-        : "Email delivery failed",
-      message: isSuccess
-        ? `${candidateName}'s assessment email was delivered.`
-        : `Failed to send results email to ${candidateName}. Manual action may be needed.`,
-      is_read: false,
-      created_at: new Date().toISOString(),
-    });
+  const { error } = await supabase.from("notifications").insert({
+    recruiter_id: data.job.recruiter_id,
+    candidate_id: data.result.candidate_id,
+    job_id: data.result.job_id,
+    assessment_id: data.result.assessment_id,
+    type: isSuccess ? "email_sent" : "email_failed",
+    title: isSuccess ? "Email sent successfully" : "Email delivery failed",
+    message: isSuccess
+      ? `${candidateName}'s assessment email was delivered.`
+      : `Failed to send results email to ${candidateName}. Manual action may be needed.`,
+    is_read: false,
+    created_at: new Date().toISOString(),
+  });
 
   if (error) {
     console.error("[send-email][notification] insert failed", error);
@@ -830,6 +842,133 @@ function createSupabaseClient(): SupabaseClient {
   });
 }
 
+type AssessmentRow = {
+  id: string;
+  candidate_id: string;
+  job_id: string;
+  recruiter_id: string;
+};
+
+type PendingReviewData = {
+  assessment: AssessmentRow;
+  candidate: CandidateRow;
+  job: Omit<JobRow, "min_score_threshold">;
+  profile: Omit<
+    ProfileRow,
+    "notify_on_every_completion" | "notify_on_pass_only"
+  >;
+};
+
+async function fetchPendingReviewData(
+  supabase: SupabaseClient,
+  assessmentId: string,
+): Promise<PendingReviewData> {
+  logStep("fetch-pending", "fetching assessment row", { assessmentId });
+
+  const { data: assessment, error: assessmentError } = await supabase
+    .from("assessments")
+    .select("id, candidate_id, job_id, recruiter_id")
+    .eq("id", assessmentId)
+    .maybeSingle<AssessmentRow>();
+
+  if (assessmentError) {
+    throw new Error(assessmentError.message);
+  }
+  if (!assessment) {
+    throw new Error("Assessment not found");
+  }
+
+  logStep("fetch-pending", "fetching candidate row", {
+    candidateId: assessment.candidate_id,
+  });
+  const { data: candidate, error: candidateError } = await supabase
+    .from("candidates")
+    .select("full_name, email")
+    .eq("id", assessment.candidate_id)
+    .maybeSingle<CandidateRow>();
+
+  if (candidateError) {
+    throw new Error(candidateError.message);
+  }
+  if (!candidate) {
+    throw new Error("Candidate not found");
+  }
+
+  logStep("fetch-pending", "fetching job row", { jobId: assessment.job_id });
+  const { data: job, error: jobError } = await supabase
+    .from("jobs")
+    .select("title, recruiter_id")
+    .eq("id", assessment.job_id)
+    .maybeSingle<Omit<JobRow, "min_score_threshold">>();
+
+  if (jobError) {
+    throw new Error(jobError.message);
+  }
+  if (!job) {
+    throw new Error("Job not found");
+  }
+
+  logStep("fetch-pending", "fetching recruiter profile row", {
+    recruiterId: assessment.recruiter_id,
+  });
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("full_name, email, company_name")
+    .eq("id", assessment.recruiter_id)
+    .maybeSingle<
+      Omit<ProfileRow, "notify_on_every_completion" | "notify_on_pass_only">
+    >();
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+  if (!profile) {
+    throw new Error("Recruiter profile not found");
+  }
+
+  return { assessment, candidate, job, profile };
+}
+
+function buildPendingReviewEmail(data: PendingReviewData): EmailContent {
+  logStep("build-pending-email", "building pending review email");
+
+  const recruiterName = safeText(data.profile.full_name, "Recruiter");
+  const candidateName = safeText(data.candidate.full_name, "Candidate");
+  const jobTitle = safeText(data.job.title, "the role");
+  const subject = `Action Required: Evaluation needs manual review — SkillGate`;
+
+  const content = `${buildHeader()}
+  <tr>
+    <td style="padding:28px 28px 20px 28px;">
+      <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:18px;line-height:1.6;color:#F1F5F9;">Evaluation Needs Manual Review</div>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:0 28px 24px 28px;">
+      <div style="background:#0B0F14;border-radius:8px;border-left:4px solid #F97316;padding:18px;">
+        <p style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:15px;line-height:1.7;color:#F1F5F9;margin:0 0 12px 0;">Hi ${escapeHtml(recruiterName)},</p>
+        <p style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:15px;line-height:1.7;color:#E2E8F0;margin:0 0 12px 0;">
+          The AI grading engine encountered a temporary issue while evaluating <strong>${escapeHtml(candidateName)}</strong>'s response for the <strong>${escapeHtml(jobTitle)}</strong> assessment.
+        </p>
+        <p style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:15px;line-height:1.7;color:#E2E8F0;margin:0 0 16px 0;">
+          No scores were generated. Please log in to your recruiter dashboard to manually review their responses or retry the AI evaluation.
+        </p>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" style="padding:2px 28px 30px 28px;">
+      <a href="${DASHBOARD_URL}" style="display:inline-block;background:#6366F1;color:#FFFFFF;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:15px;line-height:1;font-weight:800;text-decoration:none;border-radius:8px;padding:15px 22px;">View in Dashboard &rarr;</a>
+    </td>
+  </tr>
+  ${buildFooter()}`;
+
+  return {
+    subject,
+    html: buildEmailShell(content),
+  };
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -843,6 +982,46 @@ serve(async (req: Request) => {
 
     const payload = await validateRequest(req);
     const supabase = createSupabaseClient();
+
+    if (payload.type === "pending_review") {
+      const pendingData = await fetchPendingReviewData(
+        supabase,
+        payload.assessmentId,
+      );
+      const recruiterEmail = safeText(pendingData.profile.email);
+
+      if (!isValidEmail(recruiterEmail)) {
+        logStep("pending_review", "recruiter email is invalid or missing");
+        return jsonResponse(
+          { error: "Recruiter email is invalid or missing" },
+          400,
+        );
+      }
+
+      const email = buildPendingReviewEmail(pendingData);
+      const result = await retrySend(() =>
+        sendEmail({
+          to: recruiterEmail,
+          subject: email.subject,
+          html: email.html,
+        }),
+      );
+
+      if (!result.success) {
+        console.error("[send-email][pending_review] send failed", result);
+        return jsonResponse(
+          { error: "Failed to send email", details: result.error },
+          500,
+        );
+      }
+
+      logStep(
+        "pending_review",
+        "pending review notification email sent successfully",
+      );
+      return jsonResponse({ status: "sent", recruiterSent: true }, 200);
+    }
+
     const data = await fetchData(supabase, payload);
 
     if (data.result.email_sent === true) {
@@ -888,7 +1067,7 @@ serve(async (req: Request) => {
             to: candidateEmail,
             subject: email.subject,
             html: email.html,
-          })
+          }),
         );
 
         candidateSent = result.success;
@@ -932,7 +1111,7 @@ serve(async (req: Request) => {
             to: recruiterEmail,
             subject: email.subject,
             html: email.html,
-          })
+          }),
         );
 
         recruiterSent = result.success;
@@ -953,7 +1132,7 @@ serve(async (req: Request) => {
     });
 
     if (failedTargets.length === 0) {
-      await updateResultStatus(supabase, payload.resultId);
+      await updateResultStatus(supabase, payload.resultId!);
       await insertNotification(supabase, data, "success");
       logStep("complete", "all eligible emails sent successfully");
 
@@ -972,18 +1151,24 @@ serve(async (req: Request) => {
               },
             })
             .catch((error: unknown) => {
-              console.error("[send-email][pdf] generate-pdf invoke failed", error);
+              console.error(
+                "[send-email][pdf] generate-pdf invoke failed",
+                error,
+              );
             });
         } catch (error) {
           console.error("[send-email][pdf] generate-pdf invoke failed", error);
         }
       }
 
-      return jsonResponse({
-        status: "sent",
-        candidateSent,
-        recruiterSent,
-      }, 200);
+      return jsonResponse(
+        {
+          status: "sent",
+          candidateSent,
+          recruiterSent,
+        },
+        200,
+      );
     }
 
     await insertNotification(supabase, data, "failure");
@@ -991,12 +1176,15 @@ serve(async (req: Request) => {
       failedTargets,
     });
 
-    return jsonResponse({
-      status: "partial",
-      candidateSent,
-      recruiterSent,
-      failedTargets,
-    }, 207);
+    return jsonResponse(
+      {
+        status: "partial",
+        candidateSent,
+        recruiterSent,
+        failedTargets,
+      },
+      207,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[send-email][error]", message);
@@ -1008,9 +1196,6 @@ serve(async (req: Request) => {
       message.includes("Request body") ||
       message.includes("type must be");
 
-    return jsonResponse(
-      { error: message },
-      isValidationError ? 400 : 500,
-    );
+    return jsonResponse({ error: message }, isValidationError ? 400 : 500);
   }
 });

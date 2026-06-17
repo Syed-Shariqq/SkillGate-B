@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import AuthContext from "@/context/AuthContext";
 import CandidateRow from "@/components/recruiter/CandidateRow";
 import UpgradeBanner from "@/components/recruiter/UpgradeBanner";
+import { supabase } from "@/lib/supabase";
+import toast from "react-hot-toast";
 import {
   getJobById,
   getJobCandidates,
@@ -103,6 +105,25 @@ const JobDetail = () => {
       setCandidatesError("Failed to load candidates.");
     } finally {
       setCandidatesLoading(false);
+    }
+  };
+
+  const handleRetryEvaluation = async (assessmentId) => {
+    try {
+      const { error } = await supabase.functions.invoke("evaluate-responses", {
+        body: { assessmentId },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success("Evaluation restarted successfully!");
+      fetchCandidatesData();
+    } catch (err) {
+      console.error("Failed to retry evaluation:", err);
+      toast.error(err.message || "Failed to retry evaluation. Please try again.");
+      throw err;
     }
   };
 
@@ -751,6 +772,7 @@ const JobDetail = () => {
                           onSelect={handleSelect}
                           onShortlist={handleShortlist}
                           onReject={handleReject}
+                          onRetryEvaluation={handleRetryEvaluation}
                           skeleton={false}
                         />
                       ))}

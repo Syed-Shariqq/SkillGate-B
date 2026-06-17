@@ -67,6 +67,8 @@ export default function AssessmentSubmitted() {
             setPollStatus('timeout')
           } else if (err.code === 'EVALUATION_FAILED') {
             setPollStatus('error')
+          } else if (err.code === 'EVALUATION_DELAYED') {
+            setPollStatus('delayed')
           } else if (
             err.code === 'TOKEN_EXPIRED' ||
             err.code === 'TOKEN_INVALID' ||
@@ -433,6 +435,17 @@ export default function AssessmentSubmitted() {
                   Refresh
                 </button>
               )}
+            </div>
+          )}
+
+          {pollStatus === 'delayed' && (
+            <div className="w-full flex flex-col items-center">
+              <p className="text-warning text-sm text-center font-semibold mb-2">
+                Results delayed
+              </p>
+              <p className="text-text-secondary text-sm text-center leading-relaxed">
+                Your results are taking a bit longer than expected — we'll email you as soon as they're ready.
+              </p>
             </div>
           )}
         </div>

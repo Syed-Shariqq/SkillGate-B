@@ -8,6 +8,7 @@ import {
   getSessionFromStorage,
   getAssessment,
   markStarted,
+  restartAssessment,
 } from "@/services/assessment/assessmentService";
 
 import {
@@ -20,6 +21,7 @@ import ProgressDots from "@/components/assessment/ProgressDots";
 import AssessmentHeader from "./AssessmentHeader";
 import NavigationControls from "./NavigationControls";
 import QuestionContainer from "./QuestionContainer";
+import ResumeOrRestartModal from "./ResumeOrRestartModal";
 
 import toast from "react-hot-toast";
 
@@ -43,6 +45,8 @@ export default function AssessmentPage() {
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
   const [assessmentData, setAssessmentData] = useState(null);
   const [session, setSession] = useState(null);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   // Refs
   const mountedRef = useRef(true);
@@ -69,7 +73,7 @@ export default function AssessmentPage() {
   // Anti-Cheat Integration
   const antiCheat = useAntiCheat({
     assessmentId: session?.assessmentId,
-    enabled: Boolean(session?.assessmentId && !isLoading),
+    enabled: Boolean(session?.assessmentId && !isLoading && !showResumeModal),
   });
 
   // Local Storage Save Behavior
@@ -412,6 +416,65 @@ export default function AssessmentPage() {
     doSubmit();
   }, [doSubmit]);
 
+  // Resume Handler
+  const handleResume = useCallback(() => {
+    // NOTE: answers/currentIndex/flaggedQuestions are already rehydrated from localStorage during initializeAssessment before the modal renders; this only dismisses the modal and flushes offline saves.
+    setShowResumeModal(false);
+    const rawPending = localStorage.getItem(`skillgate_pending_saves_${session?.assessmentId}`);
+    let pendingLength = 0;
+    if (rawPending) {
+      try {
+        const parsed = JSON.parse(rawPending);
+        if (Array.isArray(parsed)) {
+          pendingLength = parsed.length;
+        }
+      } catch (e) {}
+    }
+    if (pendingLength > 0) {
+      flushPendingQueue(session);
+    }
+  }, [session, flushPendingQueue]);
+
+  // Restart Handler
+  const handleRestart = useCallback(async () => {
+    if (!session?.assessmentId) return;
+
+    setIsRestarting(true);
+    const { data, error } = await restartAssessment(session.assessmentId, session.sessionToken);
+
+    if (error) {
+      toast.error(error.message || "Failed to restart assessment");
+      try {
+        const res = await getAssessment({
+          assessmentId: session.assessmentId,
+          sessionToken: session.sessionToken,
+        });
+        if (res.data?.assessment) {
+          setAssessmentData(res.data.assessment);
+        }
+      } catch (fetchErr) {
+        console.error("Failed to re-fetch assessment after restart error", fetchErr);
+      }
+      setIsRestarting(false);
+      return;
+    }
+
+    // Success flow:
+    savePendingQueue([]);
+    localStorage.removeItem(`skillgate_answers_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_index_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_flags_${session.assessmentId}`);
+
+    setAnswers({});
+    setCurrentIndex(0);
+    setFlaggedQuestions(new Set());
+
+    setIsRestarting(false);
+    setShowResumeModal(false);
+
+    navigate(`/assess/${token}`, { replace: true });
+  }, [session, token, navigate, savePendingQueue]);
+
   // Mount Flow
   useEffect(() => {
     mountedRef.current = true;
@@ -540,41 +603,51 @@ export default function AssessmentPage() {
         }
         setPendingCount(initialPendingLength);
 
-        // Handle Polling if started_at is null
-        if (!assessment?.started_at) {
-          let elapsedPollTime = 0;
-          const pollInterval = setInterval(async () => {
-            elapsedPollTime += 2000;
-            if (elapsedPollTime >= 10000) {
-              clearInterval(pollInterval);
-              if (mountedRef.current) {
+        // Check if we need to show the Resume or Restart modal
+        const shouldShowResumeModal =
+          assessment?.status === "in_progress" &&
+          (assessment.has_responses || initialPendingLength > 0);
+
+        if (shouldShowResumeModal) {
+          setShowResumeModal(true);
+          setIsLoading(false);
+        } else {
+          // Handle Polling if started_at is null
+          if (!assessment?.started_at) {
+            let elapsedPollTime = 0;
+            const pollInterval = setInterval(async () => {
+              elapsedPollTime += 2000;
+              if (elapsedPollTime >= 10000) {
+                clearInterval(pollInterval);
+                if (mountedRef.current) {
+                  setIsLoading(false);
+                  if (initialPendingLength > 0) {
+                    flushPendingQueue(sessionData);
+                  }
+                }
+                return;
+              }
+
+              const pollRes = await getAssessment({ assessmentId, sessionToken });
+              if (!mountedRef.current) {
+                clearInterval(pollInterval);
+                return;
+              }
+
+              if (pollRes.data?.assessment?.started_at) {
+                setAssessmentData(pollRes.data.assessment);
+                clearInterval(pollInterval);
                 setIsLoading(false);
                 if (initialPendingLength > 0) {
                   flushPendingQueue(sessionData);
                 }
               }
-              return;
+            }, 2000);
+          } else {
+            setIsLoading(false);
+            if (initialPendingLength > 0) {
+              flushPendingQueue(sessionData);
             }
-
-            const pollRes = await getAssessment({ assessmentId, sessionToken });
-            if (!mountedRef.current) {
-              clearInterval(pollInterval);
-              return;
-            }
-
-            if (pollRes.data?.assessment?.started_at) {
-              setAssessmentData(pollRes.data.assessment);
-              clearInterval(pollInterval);
-              setIsLoading(false);
-              if (initialPendingLength > 0) {
-                flushPendingQueue(sessionData);
-              }
-            }
-          }, 2000);
-        } else {
-          setIsLoading(false);
-          if (initialPendingLength > 0) {
-            flushPendingQueue(sessionData);
           }
         }
       } catch (err) {
@@ -648,7 +721,7 @@ export default function AssessmentPage() {
 
   // BeforeUnload Protection while assessment active
   useEffect(() => {
-    if (isLoading || isSubmitting || !session?.assessmentId) return;
+    if (isLoading || isSubmitting || !session?.assessmentId || showResumeModal) return;
 
     const handleBeforeUnload = (e) => {
       const msg = "Your assessment is still in progress.";
@@ -661,7 +734,7 @@ export default function AssessmentPage() {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [isLoading, isSubmitting, session]);
+  }, [isLoading, isSubmitting, session, showResumeModal]);
 
   // Derived Collections
   const currentQuestion = useMemo(() => {
@@ -704,6 +777,19 @@ export default function AssessmentPage() {
           Loading assessment...
         </p>
       </div>
+    );
+  }
+
+  // Resume or Restart Modal State
+  if (showResumeModal) {
+    return (
+      <ResumeOrRestartModal
+        assessment={assessmentData}
+        isExpired={timer.isExpired}
+        onResume={handleResume}
+        onRestart={handleRestart}
+        isSubmitting={isRestarting}
+      />
     );
   }
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 /**
@@ -15,11 +16,14 @@ import { useNavigate } from "react-router-dom";
  *     timeTaken: number,
  *     shortlisted: boolean,
  *     rejected: boolean,
+ *     assessmentStatus?: string,
+ *     assessmentId?: string,
  *   },
  *   selected: boolean,
  *   onSelect: (id: string) => void,
  *   onShortlist: (id: string) => void,
  *   onReject: (id: string) => void,
+ *   onRetryEvaluation?: (id: string) => Promise<void>,
  *   skeleton?: boolean,
  * }} props
  */
@@ -29,9 +33,11 @@ const CandidateRow = ({
   onSelect,
   onShortlist,
   onReject,
+  onRetryEvaluation,
   skeleton = false,
 }) => {
   const navigate = useNavigate();
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const formatTime = (seconds) => {
     const totalSeconds = Math.max(0, Number(seconds) || 0);
@@ -94,6 +100,8 @@ const CandidateRow = ({
     timeTaken,
     shortlisted,
     rejected,
+    assessmentStatus,
+    assessmentId,
   } = candidate;
 
   const safeScore = Math.min(100, Math.max(0, Number(score) || 0));
@@ -110,6 +118,18 @@ const CandidateRow = ({
         ? "text-warning"
         : "text-error";
   const hasFlag = tabSwitches > 0 || pasteAttempts > 0;
+
+  const handleRetry = async () => {
+    if (!onRetryEvaluation || !assessmentId) return;
+    setIsRetrying(true);
+    try {
+      await onRetryEvaluation(assessmentId);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
 
   const handleRowClick = () => {
     navigate(`/candidates/${id}`);
@@ -149,29 +169,47 @@ const CandidateRow = ({
         </div>
       </td>
       <td className="px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-tertiary">
-            <div
-              className={`h-full rounded-full ${scoreColor}`}
-              style={{ width: `${safeScore}%` }}
-            />
+        {assessmentStatus === "completed" ? (
+          <div className="flex items-center gap-3">
+            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-tertiary">
+              <div
+                className={`h-full rounded-full ${scoreColor}`}
+                style={{ width: `${safeScore}%` }}
+              />
+            </div>
+            <span className="font-mono text-sm text-text-primary">
+              {safeScore}%
+            </span>
           </div>
-          <span className="font-mono text-sm text-text-primary">
-            {safeScore}%
-          </span>
-        </div>
+        ) : (
+          <span className="text-text-tertiary font-mono text-sm">-</span>
+        )}
       </td>
       <td className="px-4 py-4">
-        <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-            passed ? "bg-success/15 text-success" : "bg-error/15 text-error"
-          }`}
-        >
-          {passed ? "Passed" : "Failed"}
-        </span>
+        {assessmentStatus === "pending_review" ? (
+          <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-warning/15 text-warning">
+            Pending Review
+          </span>
+        ) : assessmentStatus === "evaluating" ? (
+          <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-accent-soft text-accent">
+            Evaluating
+          </span>
+        ) : assessmentStatus === "failed" ? (
+          <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-error/15 text-error">
+            Failed
+          </span>
+        ) : (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+              passed ? "bg-success/15 text-success" : "bg-error/15 text-error"
+            }`}
+          >
+            {passed ? "Passed" : "Failed"}
+          </span>
+        )}
       </td>
       <td className={`px-4 py-4 text-sm font-medium ${confidenceColor}`}>
-        {confidence}
+        {assessmentStatus === "completed" ? confidence : "-"}
       </td>
       <td className="px-4 py-4">
         {hasFlag ? (
@@ -195,34 +233,59 @@ const CandidateRow = ({
         )}
       </td>
       <td className="px-4 py-4 text-sm text-text-secondary">
-        {formatTime(timeTaken)}
+        {assessmentStatus === "completed" ? formatTime(timeTaken) : "-"}
       </td>
       <td className="px-4 py-4" onClick={stopRowClick}>
-        <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            className={`rounded border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
-              shortlisted
-                ? "border-accent bg-accent text-text-primary"
-                : "border-accent text-accent hover:bg-accent hover:text-text-primary"
-            }`}
-            disabled={shortlisted}
-            type="button"
-            onClick={() => onShortlist(id)}
-          >
-            {shortlisted ? "Shortlisted" : "Shortlist"}
-          </button>
-          <button
-            className={`rounded border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
-              rejected
-                ? "border-error bg-error text-text-primary"
-                : "border-error text-error hover:bg-error hover:text-text-primary"
-            }`}
-            disabled={rejected}
-            type="button"
-            onClick={() => onReject(id)}
-          >
-            {rejected ? "Rejected" : "Reject"}
-          </button>
+        <div
+          className={`flex items-center gap-2 transition-opacity ${
+            assessmentStatus === "pending_review" || isRetrying
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          {assessmentStatus === "pending_review" ? (
+            <button
+              className="rounded border border-warning text-warning hover:bg-warning hover:text-text-primary px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              disabled={isRetrying}
+              type="button"
+              onClick={handleRetry}
+            >
+              {isRetrying && (
+                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              )}
+              {isRetrying ? "Retrying..." : "Retry Evaluation"}
+            </button>
+          ) : (
+            <>
+              <button
+                className={`rounded border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+                  shortlisted
+                    ? "border-accent bg-accent text-text-primary"
+                    : "border-accent text-accent hover:bg-accent hover:text-text-primary"
+                }`}
+                disabled={shortlisted}
+                type="button"
+                onClick={() => onShortlist(id)}
+              >
+                {shortlisted ? "Shortlisted" : "Shortlist"}
+              </button>
+              <button
+                className={`rounded border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+                  rejected
+                    ? "border-error bg-error text-text-primary"
+                    : "border-error text-error hover:bg-error hover:text-text-primary"
+                }`}
+                disabled={rejected}
+                type="button"
+                onClick={() => onReject(id)}
+              >
+                {rejected ? "Rejected" : "Reject"}
+              </button>
+            </>
+          )}
         </div>
       </td>
     </tr>

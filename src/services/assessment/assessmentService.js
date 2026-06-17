@@ -404,3 +404,51 @@ export const markStarted = async (assessmentId, sessionToken) => {
     error: response.error,
   }
 }
+
+/**
+ * Restarts a candidate assessment, clearing previous responses and setting attempt_number = 2.
+ *
+ * @param {string} assessmentId Assessment id.
+ * @param {string} [sessionToken] Optional session token.
+ * @returns {Promise<{ data: { restarted: boolean, attemptNumber: number, startedAt: string } | null, error: null | { message: string, code?: string } }>}
+ */
+export const restartAssessment = async (assessmentId, sessionToken) => {
+  const trimmedAssessmentId = typeof assessmentId === 'string' ? assessmentId.trim() : ''
+  if (!isValidUuid(trimmedAssessmentId)) return invalidInput('Invalid input')
+
+  let token = sessionToken
+  if (!token) {
+    const session = getSessionFromStorage()
+    token = session.data?.sessionToken
+  }
+
+  if (!token) {
+    return {
+      data: null,
+      error: { message: 'Session token is required', code: 'TOKEN_INVALID' }
+    }
+  }
+
+  const response = await invokeFunction(
+    'restart-assessment',
+    {
+      assessmentId: trimmedAssessmentId,
+      sessionToken: token,
+    },
+    { assessmentId: trimmedAssessmentId },
+  )
+
+  if (response.error) {
+    return {
+      data: null,
+      error: response.error,
+    }
+  }
+
+  clearSession()
+
+  return {
+    data: response.data ?? null,
+    error: null,
+  }
+}

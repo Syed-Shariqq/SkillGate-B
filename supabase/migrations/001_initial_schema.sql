@@ -208,7 +208,8 @@ CREATE TABLE notifications (
       'candidate_passed', 'candidate_failed',
       'assessment_complete', 'link_limit_reached',
       'email_failed', 'evaluation_failed',
-      'assessment_generation_failed'
+      'assessment_generation_failed',
+      'evaluation_pending_review'
     )),
   title TEXT NOT NULL,
   message TEXT NOT NULL,

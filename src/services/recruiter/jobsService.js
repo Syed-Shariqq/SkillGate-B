@@ -121,7 +121,7 @@ export const getJobCandidates = async (jobId, uid) => {
       `)
       .eq("job_id", jobId)
       .eq("recruiter_id", uid)
-      .eq("assessments.status", "completed");
+      .in("assessments.status", ["completed", "pending_review", "failed", "evaluating"]);
 
     if (error) {
       return { data: null, error };
@@ -151,6 +151,8 @@ export const getJobCandidates = async (jobId, uid) => {
         shortlisted: candidate.status === "shortlisted",
         rejected: candidate.status === "rejected",
         completedAt: assessment.completed_at,
+        assessmentStatus: assessment.status,
+        assessmentId: assessment.id,
       };
     });
 

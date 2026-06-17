@@ -384,6 +384,9 @@ verify_jwt = false
 [functions.record-assessment-event]
 verify_jwt = false
 
+[functions.restart-assessment]
+verify_jwt = false
+
 [functions.get-job-by-token]
 verify_jwt = false
 

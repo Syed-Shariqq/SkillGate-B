@@ -5,7 +5,7 @@ ADD COLUMN assessment_id uuid REFERENCES assessments(id) ON DELETE CASCADE;
 -- 2. Add status constraint to assessments
 ALTER TABLE assessments 
 ADD CONSTRAINT assessments_status_check 
-CHECK (status IN ('pending','generating','ready','in_progress','submitted','completed','failed','expired'));
+CHECK (status IN ('pending','generating','ready','in_progress','submitted','completed','failed','expired','pending_review'));
 
 -- 3. Add cache expiry index
 CREATE INDEX idx_cache_expires_at ON cache(expires_at);

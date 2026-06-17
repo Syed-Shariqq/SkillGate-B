@@ -263,6 +263,14 @@ function hasFlag(
   return keys.some((key: keyof CandidateResponse) => response[key] === true);
 }
 
+class EvaluationFailedError extends Error {
+  code = "EVALUATION_RETRY_EXHAUSTED";
+  constructor(message: string) {
+    super(message);
+    this.name = "EvaluationFailedError";
+  }
+}
+
 async function evaluateTextResponse(
   question: Question,
   answerGiven: string,
@@ -323,36 +331,53 @@ No markdown.
 No explanations.
 No code fences.`;
 
-  try {
-    const aiResult = await callAI(prompt, 1200);
+  const executeCall = async () => {
+    try {
+      const aiResult = await callAI(prompt, 1200);
 
-    if (aiResult.error || !aiResult.data) {
-      console.error("[evaluate][ai]", aiResult.error ?? "AI evaluation failed");
-      return fallbackEvaluation();
+      if (aiResult.error || !aiResult.data) {
+        console.error("[evaluate][ai]", aiResult.error ?? "AI evaluation failed");
+        return null;
+      }
+      console.log("[evaluate][raw-ai-response]", aiResult.data);
+
+      const parsed = parseJSON(aiResult.data);
+
+      if (parsed.error || !isValidEvaluation(parsed.data)) {
+        console.error(
+          "[evaluate][ai]",
+          parsed.error ?? "Invalid AI evaluation JSON",
+        );
+        return null;
+      }
+
+      const data = parsed.data as JsonRecord;
+
+      return {
+        score: clampScore(data.score),
+        feedback: data.feedback as string,
+        missedConcepts: normalizeStringArray(data.missedConcepts),
+      };
+    } catch (error) {
+      console.error("[evaluate][ai]", error);
+      return null;
     }
-    console.log("[evaluate][raw-ai-response]", aiResult.data);
+  };
 
-    const parsed = parseJSON(aiResult.data);
+  // Attempt 1
+  let res = await executeCall();
+  if (res) return res;
 
-    if (parsed.error || !isValidEvaluation(parsed.data)) {
-      console.error(
-        "[evaluate][ai]",
-        parsed.error ?? "Invalid AI evaluation JSON",
-      );
-      return fallbackEvaluation();
-    }
+  // Retry after 1000ms
+  console.warn(`[evaluate][ai] AI evaluation failed for question ${question.id}. Retrying in 1000ms...`);
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const data = parsed.data as JsonRecord;
+  // Attempt 2
+  res = await executeCall();
+  if (res) return res;
 
-    return {
-      score: clampScore(data.score),
-      feedback: data.feedback as string,
-      missedConcepts: normalizeStringArray(data.missedConcepts),
-    };
-  } catch (error) {
-    console.error("[evaluate][ai]", error);
-    return fallbackEvaluation();
-  }
+  // Both failed
+  throw new EvaluationFailedError(`AI evaluation retry exhausted for question ID ${question.id}`);
 }
 
 async function evaluateResponses(
@@ -360,74 +385,78 @@ async function evaluateResponses(
   responseMap: Record<string, CandidateResponse>,
   job: Job,
 ): Promise<EvaluatedResponse[]> {
-  return Promise.all(
-    questions.map(async (question: Question) => {
-      const res = responseMap[question.id];
-      const response = res ?? null;
-      const answerGiven = res?.answer_given?.trim() ?? "";
+  const evaluated: EvaluatedResponse[] = [];
 
-      if (question.question_type === "mcq") {
-        const normalizedAnswer = (res?.answer_given ?? "").trim().toLowerCase();
+  for (const question of questions) {
+    const res = responseMap[question.id];
+    const response = res ?? null;
+    const answerGiven = res?.answer_given?.trim() ?? "";
 
-        const normalizedCorrect = (question.correct_answer ?? "")
-          .trim()
-          .toLowerCase();
+    if (question.question_type === "mcq") {
+      const normalizedAnswer = (res?.answer_given ?? "").trim().toLowerCase();
 
-        const isMissingAnswer = normalizedAnswer.length === 0;
-        const isCorrect = isMissingAnswer
-          ? false
-          : normalizedAnswer === normalizedCorrect;
-        const score = isCorrect ? 1 : 0;
-        const pointsEarned = Math.max(
-          0,
-          isCorrect ? safeQuestionPoints(question) : 0,
-        );
+      const normalizedCorrect = (question.correct_answer ?? "")
+        .trim()
+        .toLowerCase();
 
-        return {
-          question,
-          response,
-          score,
-          pointsEarned,
-          isCorrect,
-          feedback: isMissingAnswer
-            ? "No answer provided"
-            : isCorrect
-              ? "Correct"
-              : "Incorrect",
-          missedConcepts: [],
-        };
-      }
-
-      if (!answerGiven) {
-        return {
-          question,
-          response,
-          score: 0,
-          pointsEarned: 0,
-          isCorrect: false,
-          feedback: "No answer provided.",
-          missedConcepts: [],
-        };
-      }
-
-      const textEvaluation = await evaluateTextResponse(
-        question,
-        answerGiven,
-        job,
+      const isMissingAnswer = normalizedAnswer.length === 0;
+      const isCorrect = isMissingAnswer
+        ? false
+        : normalizedAnswer === normalizedCorrect;
+      const score = isCorrect ? 1 : 0;
+      const pointsEarned = Math.max(
+        0,
+        isCorrect ? safeQuestionPoints(question) : 0,
       );
-      const pointsEarned = Math.round(question.points * textEvaluation.score);
 
-      return {
+      evaluated.push({
         question,
         response,
-        score: textEvaluation.score,
+        score,
         pointsEarned,
-        isCorrect: textEvaluation.score >= 0.7,
-        feedback: textEvaluation.feedback,
-        missedConcepts: textEvaluation.missedConcepts,
-      };
-    }),
-  );
+        isCorrect,
+        feedback: isMissingAnswer
+          ? "No answer provided"
+          : isCorrect
+            ? "Correct"
+            : "Incorrect",
+        missedConcepts: [],
+      });
+      continue;
+    }
+
+    if (!answerGiven) {
+      evaluated.push({
+        question,
+        response,
+        score: 0,
+        pointsEarned: 0,
+        isCorrect: false,
+        feedback: "No answer provided.",
+        missedConcepts: [],
+      });
+      continue;
+    }
+
+    const textEvaluation = await evaluateTextResponse(
+      question,
+      answerGiven,
+      job,
+    );
+    const pointsEarned = Math.round(question.points * textEvaluation.score);
+
+    evaluated.push({
+      question,
+      response,
+      score: textEvaluation.score,
+      pointsEarned,
+      isCorrect: textEvaluation.score >= 0.7,
+      feedback: textEvaluation.feedback,
+      missedConcepts: textEvaluation.missedConcepts,
+    });
+  }
+
+  return evaluated;
 }
 
 function buildSkillScores(evaluated: EvaluatedResponse[]): SkillScoreSummary[] {
@@ -600,10 +629,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Assessment not found" }, 404);
     }
 
-    if (assessment.status !== "submitted") {
+    if (assessment.status !== "submitted" && assessment.status !== "pending_review") {
       return jsonResponse(
         {
-          error: "Assessment not in submitted state",
+          error: "Assessment not in submitted or pending_review state",
           currentStatus: assessment.status,
         },
         400,
@@ -683,8 +712,84 @@ Deno.serve(async (req) => {
       ]),
     ) as Record<string, CandidateResponse>;
 
-    const evaluated = await evaluateResponses(questions, responseMap, job);
-    console.log("[evaluate] responses evaluated");
+    let evaluated;
+    try {
+      evaluated = await evaluateResponses(questions, responseMap, job);
+      console.log("[evaluate] responses evaluated");
+    } catch (error) {
+      if (error instanceof EvaluationFailedError) {
+        console.warn("[evaluate] AI retry exhausted, escalating to pending_review", error.message);
+        const now = new Date().toISOString();
+
+        // 1. Update status to pending_review
+        try {
+          await supabase
+            .from("assessments")
+            .update({
+              status: "pending_review",
+              updated_at: now,
+            })
+            .eq("id", assessmentId)
+            .throwOnError();
+        } catch (statusError) {
+          console.error("[evaluate][pending-review] failed to update status", statusError);
+        }
+
+        // 2. Insert notification row
+        try {
+          const { data: candidate, error: candidateError } = await supabase
+            .from("candidates")
+            .select("full_name")
+            .eq("id", assessment.candidate_id)
+            .maybeSingle<Candidate>();
+
+          if (candidateError) {
+            throw candidateError;
+          }
+
+          const candidateName =
+            typeof candidate?.full_name === "string" &&
+            candidate.full_name.trim().length > 0
+              ? candidate.full_name.trim()
+              : "Candidate";
+
+          await supabase
+            .from("notifications")
+            .insert({
+              recruiter_id: assessment.recruiter_id,
+              type: "evaluation_pending_review",
+              title: "Evaluation needs review",
+              message: `${candidateName}'s evaluation for "${job.title}" needs manual review.`,
+              assessment_id: assessmentId,
+              job_id: assessment.job_id,
+              is_read: false,
+              created_at: now,
+            })
+            .throwOnError();
+        } catch (notifError) {
+          console.error("[evaluate][pending-review] failed to insert notification", notifError);
+        }
+
+        // 3. Trigger email
+        supabase.functions
+          .invoke("send-email", {
+            body: {
+              assessmentId,
+              type: "pending_review",
+            },
+          })
+          .catch((err: unknown) => {
+            console.error(
+              "[evaluate][pending-review] failed to invoke send-email",
+              err instanceof Error ? err.message : String(err),
+            );
+          });
+
+        return jsonResponse({ status: "pending_review", assessmentId }, 200);
+      } else {
+        throw error;
+      }
+    }
 
     await Promise.allSettled(
       questions

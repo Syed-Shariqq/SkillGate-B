@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AuthContext from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
+import toast from "react-hot-toast";
 import {
   getCandidateProfile,
   updateCandidateStatus,
@@ -21,6 +23,7 @@ const CandidateProfile = () => {
   const [showNote, setShowNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
 
   const loadProfile = async () => {
     if (!user?.id || !candidateId) return;
@@ -38,6 +41,28 @@ const CandidateProfile = () => {
       setError("An unexpected error occurred.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetryEvaluation = async () => {
+    if (!profileData?.assessment?.id) return;
+    setRetryLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke("evaluate-responses", {
+        body: { assessmentId: profileData.assessment.id },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success("Evaluation restarted successfully!");
+      loadProfile();
+    } catch (err) {
+      console.error("Failed to retry evaluation:", err);
+      toast.error(err.message || "Failed to retry evaluation. Please try again.");
+    } finally {
+      setRetryLoading(false);
     }
   };
 
@@ -265,82 +290,131 @@ const CandidateProfile = () => {
             </div>
 
             <div className="flex sm:flex-col items-start sm:items-end gap-3 sm:gap-1 shrink-0">
-              <div className="flex items-baseline gap-1">
-                <span className={`text-4xl font-bold font-mono ${scoreColor}`}>{score}%</span>
-              </div>
+              {assessment.status === "completed" && (
+                <div className="flex items-baseline gap-1">
+                  <span className={`text-4xl font-bold font-mono ${scoreColor}`}>{score}%</span>
+                </div>
+              )}
               <div className="flex flex-col sm:items-end gap-1">
-                <span className="text-text-tertiary text-xs uppercase tracking-wider font-semibold">
-                  Overall Score
-                </span>
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    result.passed ? "bg-success/15 text-success" : "bg-error/15 text-error"
-                  }`}
-                >
-                  {result.passed ? "Passed" : "Failed"}
-                </span>
+                {assessment.status === "completed" && (
+                  <span className="text-text-tertiary text-xs uppercase tracking-wider font-semibold">
+                    Overall Score
+                  </span>
+                )}
+                {assessment.status === "pending_review" ? (
+                  <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold bg-warning/15 text-warning">
+                    Pending Review
+                  </span>
+                ) : assessment.status === "evaluating" ? (
+                  <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold bg-accent-soft text-accent">
+                    Evaluating
+                  </span>
+                ) : assessment.status === "failed" ? (
+                  <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold bg-error/15 text-error">
+                    Failed
+                  </span>
+                ) : (
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      result.passed ? "bg-success/15 text-success" : "bg-error/15 text-error"
+                    }`}
+                  >
+                    {result.passed ? "Passed" : "Failed"}
+                  </span>
+                )}
               </div>
             </div>
           </div>
+
+          {assessment.status === "pending_review" && (
+            <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-start gap-3">
+              <svg className="w-5 h-5 text-warning shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <h4 className="text-warning text-sm font-semibold mb-1">Evaluation Needs Review</h4>
+                <p className="text-text-secondary text-xs leading-relaxed">
+                  The AI grading engine encountered a temporary issue while evaluating this candidate's responses. No score has been generated. You can trigger a retry using the action on the right.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {assessment.status === "evaluating" && (
+            <div className="bg-accent-soft/10 border border-accent/20 rounded-xl p-4 flex items-start gap-3 animate-pulse">
+              <svg className="w-5 h-5 text-accent shrink-0 mt-0.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <div>
+                <h4 className="text-accent text-sm font-semibold mb-1">Evaluation in Progress</h4>
+                <p className="text-text-secondary text-xs leading-relaxed">
+                  The AI grading engine is currently evaluating the candidate's answers. Results will be available shortly.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Executive AI Summary section */}
-          <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between gap-3 border-b border-border-default pb-3">
-              <h2 className="text-text-primary font-semibold text-lg">Executive Summary</h2>
-              {result.hiring_signal && (
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    result.hiring_signal === "No Hire" ? "bg-error/15 text-error" : "bg-success/15 text-success"
-                  }`}
-                >
-                  {result.hiring_signal}
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              {result.executive_summary ? (
-                <p className="text-text-secondary text-sm leading-relaxed">{result.executive_summary}</p>
-              ) : (
-                <p className="text-text-tertiary text-sm">Summary not yet generated</p>
-              )}
-              {result.hiring_rationale && (
-                <p className="text-text-tertiary text-xs italic mt-2 border-l-2 border-border-default pl-3 leading-relaxed">
-                  {result.hiring_rationale}
-                </p>
-              )}
-            </div>
-
-            {/* Technical Confidence block inside Executive Summary */}
-            <div className="pt-4 border-t border-border-default space-y-2">
-              <div className="flex justify-between items-center text-sm font-medium">
-                <span className="text-text-primary">Technical Confidence</span>
-                <span
-                  className={`text-xs font-semibold ${
-                    result.confidence_label === "High"
-                      ? "text-success"
-                      : result.confidence_label === "Medium"
-                        ? "text-warning"
-                        : "text-error"
-                  }`}
-                >
-                  {result.confidence_label} ({result.confidence_score ?? 0}%)
-                </span>
+          {assessment.status === "completed" && (
+            <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3 border-b border-border-default pb-3">
+                <h2 className="text-text-primary font-semibold text-lg">Executive Summary</h2>
+                {result.hiring_signal && (
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      result.hiring_signal === "No Hire" ? "bg-error/15 text-error" : "bg-success/15 text-success"
+                    }`}
+                  >
+                    {result.hiring_signal}
+                  </span>
+                )}
               </div>
-              <div className="h-2 w-full rounded-full bg-tertiary overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    result.confidence_label === "High"
-                      ? "bg-success"
-                      : result.confidence_label === "Medium"
-                        ? "bg-warning"
-                        : "bg-error"
-                  }`}
-                  style={{ width: `${result.confidence_score ?? 0}%` }}
-                ></div>
+
+              <div className="space-y-3">
+                {result.executive_summary ? (
+                  <p className="text-text-secondary text-sm leading-relaxed">{result.executive_summary}</p>
+                ) : (
+                  <p className="text-text-tertiary text-sm">Summary not yet generated</p>
+                )}
+                {result.hiring_rationale && (
+                  <p className="text-text-tertiary text-xs italic mt-2 border-l-2 border-border-default pl-3 leading-relaxed">
+                    {result.hiring_rationale}
+                  </p>
+                )}
+              </div>
+
+              {/* Technical Confidence block inside Executive Summary */}
+              <div className="pt-4 border-t border-border-default space-y-2">
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-text-primary">Technical Confidence</span>
+                  <span
+                    className={`text-xs font-semibold ${
+                      result.confidence_label === "High"
+                        ? "text-success"
+                        : result.confidence_label === "Medium"
+                          ? "text-warning"
+                          : "text-error"
+                    }`}
+                  >
+                    {result.confidence_label} ({result.confidence_score ?? 0}%)
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-tertiary overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      result.confidence_label === "High"
+                        ? "bg-success"
+                        : result.confidence_label === "Medium"
+                          ? "bg-warning"
+                          : "bg-error"
+                    }`}
+                    style={{ width: `${result.confidence_score ?? 0}%` }}
+                  ></div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Integrity section */}
           <div className="bg-secondary border border-border-default rounded-xl p-5">
@@ -395,34 +469,36 @@ const CandidateProfile = () => {
           </div>
 
           {/* Skill Passport section */}
-          <div className="bg-secondary border border-border-default rounded-xl p-5">
-            <h2 className="text-text-primary font-semibold text-lg border-b border-border-default pb-3 mb-3">
-              Skill Passport
-            </h2>
-            {result.skill_scores && result.skill_scores.length > 0 ? (
-              <div className="space-y-4 mt-3">
-                {result.skill_scores.map((skillItem, index) => {
-                  const scoreVal = skillItem.score ?? 0;
-                  return (
-                    <div key={index} className="space-y-1.5">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-text-primary font-medium">{skillItem.skill}</span>
-                        <span className="text-text-secondary text-xs">{skillItem.level}</span>
+          {assessment.status === "completed" && (
+            <div className="bg-secondary border border-border-default rounded-xl p-5">
+              <h2 className="text-text-primary font-semibold text-lg border-b border-border-default pb-3 mb-3">
+                Skill Passport
+              </h2>
+              {result.skill_scores && result.skill_scores.length > 0 ? (
+                <div className="space-y-4 mt-3">
+                  {result.skill_scores.map((skillItem, index) => {
+                    const scoreVal = skillItem.score ?? 0;
+                    return (
+                      <div key={index} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-text-primary font-medium">{skillItem.skill}</span>
+                          <span className="text-text-secondary text-xs">{skillItem.level}</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-tertiary overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-accent"
+                            style={{ width: `${scoreVal}%` }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-tertiary overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-accent"
-                          style={{ width: `${scoreVal}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-text-tertiary text-sm mt-3">Skill breakdown not available</p>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-text-tertiary text-sm mt-3">Skill breakdown not available</p>
+              )}
+            </div>
+          )}
 
           {/* Assessment Breakdown section */}
           <div className="bg-secondary border border-border-default rounded-xl p-5">
@@ -532,6 +608,23 @@ const CandidateProfile = () => {
         <div className="w-full md:w-80 shrink-0 md:sticky md:top-6">
           <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-3">
             <h3 className="text-text-primary font-semibold text-base mb-2">Actions</h3>
+
+            {/* Retry Evaluation Button for Pending Review */}
+            {assessment?.status === "pending_review" && (
+              <button
+                onClick={handleRetryEvaluation}
+                disabled={retryLoading}
+                className="w-full py-2.5 px-4 bg-warning hover:bg-warning/80 text-text-primary text-sm font-semibold rounded-lg transition-smooth cursor-pointer text-center flex items-center justify-center gap-2"
+              >
+                {retryLoading && (
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+                {retryLoading ? "Retrying..." : "Retry Evaluation"}
+              </button>
+            )}
 
             {/* Shortlist Button */}
             {statusState === "shortlisted" ? (
