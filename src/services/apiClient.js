@@ -14,9 +14,9 @@ const isDevMode = () => Boolean(import.meta.env.DEV)
  * Converts any Supabase, network, or unknown error into the service error shape.
  *
  * @param {unknown} error
- * @returns {{ message: string, code?: string, details?: unknown, type?: string }}
+ * @returns {Promise<{ message: string, code?: string, details?: unknown, type?: string }>}
  */
-const normalizeError = (error) => {
+const normalizeError = async (error) => {
   if (error?.code === SESSION_EXPIRED_CODE) {
     return {
       type: 'SESSION_EXPIRED',
@@ -24,10 +24,32 @@ const normalizeError = (error) => {
     }
   }
 
+  let message = error?.message || 'Unexpected request error'
+  let code = error?.code || 'UNKNOWN_ERROR'
+  let details = error?.details || error?.hint || null
+
+  const context = error?.context
+  if (context && (context instanceof Response || typeof context.json === 'function')) {
+    try {
+      const parsed = await context.clone().json()
+      if (parsed?.error) {
+        code = parsed.error.code || code
+        message = parsed.error.message || message
+      }
+    } catch (_) {
+      try {
+        const text = await context.clone().text()
+        if (text) {
+          message = text
+        }
+      } catch (_) {}
+    }
+  }
+
   return {
-    message: error?.message || 'Unexpected request error',
-    code: error?.code || 'UNKNOWN_ERROR',
-    details: error?.details || error?.hint || null,
+    message,
+    code,
+    details,
   }
 }
 
@@ -80,7 +102,7 @@ export const apiClient = async (queryFn, context = {}) => {
         return { data: null, error: null }
       }
 
-      const error = normalizeError(result.error)
+      const error = await normalizeError(result.error)
       logDevError(context, error, result)
 
       return { data: null, error }
@@ -92,7 +114,7 @@ export const apiClient = async (queryFn, context = {}) => {
 
     return { data: result ?? null, error: null }
   } catch (caughtError) {
-    const error = normalizeError(caughtError)
+    const error = await normalizeError(caughtError)
     logDevError(context, error, null)
 
     return { data: null, error }

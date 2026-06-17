@@ -169,6 +169,7 @@ export default function AssessmentPage() {
 
     try {
       const queue = getPendingQueue();
+      let expiredDuringFlush = false;
 
       if (queue.length === 0) {
         isFlushingRef.current = false;
@@ -190,12 +191,20 @@ export default function AssessmentPage() {
 
         if (!mountedRef.current) break;
 
-        if (!error) {
+        if (error) {
+          if (error.code === "ASSESSMENT_EXPIRED") {
+            savePendingQueue([]);
+            toast("Time's up — submitting your assessment now.", { duration: 4000 });
+            expiredDuringFlush = true;
+            doSubmit();
+            break;
+          }
+        } else {
           dequeuePendingSave(entry.questionId);
         }
       }
 
-      if (mountedRef.current) {
+      if (mountedRef.current && !expiredDuringFlush) {
         const finalQueue = getPendingQueue();
         if (finalQueue.length === 0) {
           toast("All synced");
@@ -217,7 +226,7 @@ export default function AssessmentPage() {
     } finally {
       isFlushingRef.current = false;
     }
-  }, [session, getPendingQueue, dequeuePendingSave]);
+  }, [session, getPendingQueue, dequeuePendingSave, savePendingQueue, doSubmit]);
 
   // Save Response to Backend
   const triggerSaveResponse = useCallback(
@@ -256,6 +265,12 @@ export default function AssessmentPage() {
             return;
           }
 
+          if (error.code === "ASSESSMENT_EXPIRED") {
+            toast("Time's up — submitting your assessment now.", { duration: 4000 });
+            doSubmit();
+            return;
+          }
+
           if (!isRetry) {
             setTimeout(() => {
               executeSave(true);
@@ -291,6 +306,8 @@ export default function AssessmentPage() {
   // Do Submit Action
   const doSubmit = useCallback(async () => {
     if (!session?.assessmentId) return;
+    if (pendingSubmitRef.current) return;
+    pendingSubmitRef.current = true;
 
     setIsSubmitting(true);
 

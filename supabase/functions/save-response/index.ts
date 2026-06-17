@@ -18,6 +18,8 @@ type AssessmentRow = {
   id: string;
   candidate_id: string;
   status: string;
+  started_at: string | null;
+  time_limit_minutes: number;
 };
 
 type QuestionRow = {
@@ -179,7 +181,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: assessment, error: assessmentError } = await supabase
       .from("assessments")
-      .select("id,candidate_id,status")
+      .select("id,candidate_id,status,started_at,time_limit_minutes")
       .eq("id", assessmentId)
       .eq("candidate_id", token.candidateId)
       .maybeSingle<AssessmentRow>();
@@ -198,6 +200,26 @@ Deno.serve(async (req: Request) => {
         "Assessment is not active",
         409,
       );
+    }
+
+    const startedAtTime = assessment.started_at ? new Date(assessment.started_at).getTime() : null;
+    const timeLimitMinutes = assessment.time_limit_minutes ?? 45;
+
+    if (startedAtTime !== null) {
+      const nowMs = new Date().getTime();
+      const elapsedMinutes = (nowMs - startedAtTime) / 1000 / 60;
+      if (elapsedMinutes > timeLimitMinutes) {
+        logger.warn("assessment_expired", {
+          startedAt: assessment.started_at,
+          timeLimitMinutes,
+          elapsedMinutes,
+        });
+        return formatError(
+          "ASSESSMENT_EXPIRED",
+          "Assessment has expired",
+          409,
+        );
+      }
     }
 
     const { data: question, error: questionError } = await supabase
