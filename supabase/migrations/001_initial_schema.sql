@@ -207,7 +207,8 @@ CREATE TABLE notifications (
     CHECK (type IN (
       'candidate_passed', 'candidate_failed',
       'assessment_complete', 'link_limit_reached',
-      'email_failed', 'evaluation_failed'
+      'email_failed', 'evaluation_failed',
+      'assessment_generation_failed'
     )),
   title TEXT NOT NULL,
   message TEXT NOT NULL,

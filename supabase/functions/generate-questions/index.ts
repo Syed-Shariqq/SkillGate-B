@@ -358,6 +358,9 @@ function shuffleQuestions(questions: AIQuestion[]): AIQuestion[] {
 async function markAssessmentFailed(
   supabase: ReturnType<typeof createClient>,
   assessmentId: string,
+  recruiterId: string,
+  jobId: string,
+  jobTitle: string,
 ) {
   const { error } = await supabase
     .from('assessments')
@@ -366,6 +369,27 @@ async function markAssessmentFailed(
 
   if (error) {
     console.error('[generate-questions] failed to mark assessment failed', error)
+  }
+
+  try {
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        recruiter_id: recruiterId,
+        type: 'assessment_generation_failed',
+        title: 'Assessment generation failed',
+        message: `Question generation failed for "${jobTitle}". The candidate can retry from their assessment link.`,
+        assessment_id: assessmentId,
+        job_id: jobId,
+        candidate_id: null,
+        is_read: false,
+      })
+
+    if (notificationError) {
+      console.error('[generate-questions] failed to insert failure notification', notificationError)
+    }
+  } catch (err) {
+    console.error('[generate-questions] exception inserting failure notification', err)
   }
 }
 
@@ -467,7 +491,7 @@ Deno.serve(async (req: Request) => {
 
     if (profileError) {
       console.error('[generate-questions] profile fetch failed', profileError)
-      await markAssessmentFailed(supabase, assessmentId)
+      await markAssessmentFailed(supabase, assessmentId, recruiterId, jobId, job.title)
       return errorResponse('Failed to fetch profile', 500, 'DB_ERROR')
     }
 
@@ -488,7 +512,7 @@ Deno.serve(async (req: Request) => {
 
     if (!rateLimit.allowed) {
       console.error('[generate-questions] rate limit exceeded', rateLimit)
-      await markAssessmentFailed(supabase, assessmentId)
+      await markAssessmentFailed(supabase, assessmentId, recruiterId, jobId, job.title)
       return jsonResponse(
         { error: 'Rate limit exceeded', count: rateLimit.count },
         429,
@@ -499,7 +523,7 @@ Deno.serve(async (req: Request) => {
 
     if (skills.length === 0) {
       console.error('[generate-questions] validation failure: job has no skills')
-      await markAssessmentFailed(supabase, assessmentId)
+      await markAssessmentFailed(supabase, assessmentId, recruiterId, jobId, job.title)
       return errorResponse('Job skills are required', 400, 'INVALID_JOB')
     }
 
@@ -533,7 +557,7 @@ Deno.serve(async (req: Request) => {
 
       if (!questions) {
         console.error('[generate-questions] failure: AI generation failed after retry')
-        await markAssessmentFailed(supabase, assessmentId)
+        await markAssessmentFailed(supabase, assessmentId, recruiterId, jobId, job.title)
         return errorResponse('Failed to generate questions', 500, 'AI_FAILURE')
       }
 
@@ -561,7 +585,7 @@ Deno.serve(async (req: Request) => {
 
     if (rpcError) {
       console.error('[generate-questions] RPC write failed', rpcError)
-      await markAssessmentFailed(supabase, assessmentId)
+      await markAssessmentFailed(supabase, assessmentId, recruiterId, jobId, job.title)
       return errorResponse('Failed to save questions', 500, 'DB_ERROR')
     }
 

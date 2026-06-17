@@ -231,6 +231,10 @@ const getNotifIcon = (type) => {
       color: '#F97316',
       path: 'M13 2h-2v9.586l-3.293-3.293-1.414 1.414L12 15.414l5.707-5.707-1.414-1.414L13 11.586V2Zm-8 16h14v2H5v-2Z'
     },
+    assessment_generation_failed: {
+      color: '#EF4444',
+      path: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm0-4h-2V7h2Z'
+    },
   };
 
   const fallback = {
