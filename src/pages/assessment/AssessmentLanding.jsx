@@ -240,31 +240,57 @@ export default function AssessmentLanding() {
   // Loading State
   if (pageStatus === "loading") {
     return (
-      <div className="min-h-screen bg-primary flex flex-col items-center justify-center p-4">
-        {/* Spinner SVG */}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          className="w-8 h-8 animate-spin text-accent"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-        <p className="text-text-secondary text-sm mt-4 font-medium select-none">
-          Loading assessment...
-        </p>
+      <div className="min-h-screen bg-primary flex flex-col">
+        {/* Sticky Top Navigation Skeleton */}
+        <header className="sticky top-0 z-20 bg-secondary border-b border-border-default px-4 md:px-6 py-3 flex items-center justify-between animate-pulse">
+          <div className="h-4 bg-tertiary rounded w-36"></div>
+          <div className="h-8 bg-tertiary rounded w-28"></div>
+        </header>
+
+        {/* Job Hero Section Skeleton */}
+        <section className="pt-8 md:pt-12 pb-6 px-4 text-center select-none animate-pulse">
+          <div className="h-3 bg-tertiary rounded w-44 mx-auto mb-3"></div>
+          <div className="h-9 bg-tertiary rounded w-80 mx-auto mb-4"></div>
+          
+          {/* Pills Row Skeleton */}
+          <div className="flex justify-center gap-2 mb-8">
+            <div className="h-7 bg-tertiary rounded-full w-20"></div>
+            <div className="h-7 bg-tertiary rounded-full w-24"></div>
+            <div className="h-7 bg-tertiary rounded-full w-16"></div>
+          </div>
+        </section>
+
+        {/* Stats Grid Skeleton */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto w-full px-4 mb-8 select-none animate-pulse">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="bg-secondary border border-border-default rounded-xl p-4 flex flex-col items-center shadow-sm space-y-3">
+              <div className="w-5 h-5 rounded-full bg-tertiary"></div>
+              <div className="h-6 bg-tertiary rounded w-20"></div>
+              <div className="h-3 bg-tertiary rounded w-16"></div>
+            </div>
+          ))}
+        </section>
+
+        {/* Form Card Skeleton */}
+        <section className="max-w-lg mx-auto w-full px-4 mb-8 animate-pulse">
+          <div className="bg-secondary border border-border-default rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+            <div className="h-5 bg-tertiary rounded w-1/3"></div>
+
+            <div className="space-y-4">
+              <div className="flex flex-col space-y-2">
+                <div className="h-3 bg-tertiary rounded w-1/4"></div>
+                <div className="h-11 bg-tertiary rounded w-full"></div>
+              </div>
+
+              <div className="flex flex-col space-y-2">
+                <div className="h-3 bg-tertiary rounded w-1/4"></div>
+                <div className="h-11 bg-tertiary rounded w-full"></div>
+              </div>
+
+              <div className="h-11 bg-tertiary rounded w-full pt-2"></div>
+            </div>
+          </div>
+        </section>
       </div>
     );
   }

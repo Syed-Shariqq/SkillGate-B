@@ -1,14 +1,7 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+const SkillRadarChart = React.lazy(() => import("@/components/assessment/SkillRadarChart"));
 
 import { getSessionFromStorage } from "@/services/assessment/assessmentService";
 
@@ -425,31 +418,65 @@ export default function AssessmentResult() {
   // Loading State
   if (pageStatus === "loading") {
     return (
-      <div className="min-h-screen bg-primary flex flex-col items-center justify-center p-4">
-        {/* Spinner SVG */}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          className="w-8 h-8 animate-spin text-accent"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-        <p className="text-text-secondary text-sm mt-4 font-medium select-none animate-pulse">
-          Loading your results...
-        </p>
+      <div className="min-h-screen bg-primary flex flex-col">
+        {/* Sticky Header Skeleton */}
+        <header className="sticky top-0 z-20 bg-secondary border-b border-border-default px-4 md:px-6 py-3 flex items-center justify-between animate-pulse">
+          <div className="h-4 bg-tertiary rounded w-32"></div>
+          <div className="flex gap-3">
+            <div className="h-8 bg-tertiary rounded w-24"></div>
+            <div className="h-8 bg-tertiary rounded w-24"></div>
+          </div>
+        </header>
+
+        <main className="grow py-8 md:py-12 space-y-8">
+          {/* Hero Section Skeleton */}
+          <section className="px-4 text-center max-w-3xl mx-auto space-y-4 animate-pulse">
+            <div className="h-3 bg-tertiary rounded w-28 mx-auto"></div>
+            <div className="h-16 bg-tertiary rounded w-36 mx-auto"></div>
+            <div className="h-6 bg-tertiary rounded-full w-20 mx-auto"></div>
+            <div className="space-y-2 max-w-xl mx-auto pt-2">
+              <div className="h-4 bg-tertiary rounded w-full"></div>
+              <div className="h-4 bg-tertiary rounded w-5/6 mx-auto"></div>
+            </div>
+            <div className="flex justify-center gap-3 pt-4">
+              <div className="h-8 bg-tertiary rounded w-24"></div>
+              <div className="h-8 bg-tertiary rounded w-32"></div>
+            </div>
+          </section>
+
+          {/* Radar Chart Card Skeleton */}
+          <section className="max-w-2xl mx-auto px-4 animate-pulse">
+            <div className="bg-secondary border border-border-default rounded-2xl p-6 shadow-sm space-y-6">
+              <div className="space-y-2">
+                <div className="h-5 bg-tertiary rounded w-1/4"></div>
+                <div className="h-3.5 bg-tertiary rounded w-1/3"></div>
+              </div>
+              <div className="w-full flex justify-center py-4">
+                <div className="w-full h-[280px] bg-tertiary/20 rounded-2xl"></div>
+              </div>
+            </div>
+          </section>
+
+          {/* Question Breakdown Accordions Skeleton */}
+          <section className="max-w-2xl mx-auto px-4 space-y-4 animate-pulse">
+            <div className="h-6 bg-tertiary rounded w-1/3"></div>
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="bg-secondary border border-border-default rounded-xl p-4 flex items-center justify-between"
+              >
+                <div className="flex items-center space-x-3 w-2/3">
+                  <div className="h-6 bg-tertiary rounded w-10 shrink-0"></div>
+                  <div className="h-4 bg-tertiary rounded w-full"></div>
+                </div>
+                <div className="flex items-center space-x-3 shrink-0">
+                  <div className="h-6 bg-tertiary rounded w-12"></div>
+                  <div className="h-4 bg-tertiary rounded w-4"></div>
+                </div>
+              </div>
+            ))}
+          </section>
+        </main>
       </div>
     );
   }
@@ -607,41 +634,13 @@ export default function AssessmentResult() {
 
               {/* Radar Chart responsive container */}
               <div className="w-full flex justify-center">
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart
-                    cx="50%"
-                    cy="50%"
-                    outerRadius="70%"
-                    data={radarData}
-                  >
-                    <PolarGrid stroke={chartColors.grid} />
-                    <PolarAngleAxis
-                      dataKey="skill"
-                      tick={{
-                        fill: chartColors.text,
-                        fontSize: 11,
-                        fontWeight: 500,
-                      }}
-                    />
-                    <Radar
-                      name="Score"
-                      dataKey="score"
-                      stroke={chartColors.stroke}
-                      fill={chartColors.fill}
-                      fillOpacity={0.2}
-                      strokeWidth={2}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--color-secondary, #1c1c1f)",
-                        borderColor: "var(--color-border-default, #2d2d30)",
-                        color: "var(--color-text-primary, #ffffff)",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                      }}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <Suspense
+                  fallback={
+                    <div className="w-full h-[280px] bg-tertiary/20 animate-pulse rounded-2xl" />
+                  }
+                >
+                  <SkillRadarChart data={radarData} chartColors={chartColors} />
+                </Suspense>
               </div>
 
               {/* Textual Accessibility Summary */}

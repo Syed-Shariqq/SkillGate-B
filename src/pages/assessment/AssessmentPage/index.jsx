@@ -768,31 +768,60 @@ export default function AssessmentPage() {
   // Loading State
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-primary flex flex-col items-center justify-center p-4">
-        {/* Inline Spinner SVG */}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          className="w-8 h-8 animate-spin text-accent"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-        <p className="text-text-secondary text-sm mt-4 font-medium select-none">
-          Loading assessment...
-        </p>
+      <div className="min-h-screen bg-primary flex flex-col">
+        {/* Sticky Header Skeleton */}
+        <header className="sticky top-0 z-10 bg-secondary border-b border-border-default px-4 md:px-6 py-3 flex items-center justify-between animate-pulse">
+          <div className="flex items-center space-x-3">
+            <div className="h-4 bg-tertiary rounded w-20"></div>
+            <div className="h-4 bg-tertiary rounded w-24"></div>
+          </div>
+          <div className="h-6 bg-tertiary rounded w-28"></div>
+        </header>
+
+        {/* Main Content Area Skeleton */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Sidebar Skeleton (Desktop Only) */}
+          <aside className="hidden md:flex flex-col w-44 md:w-52 shrink-0 bg-secondary border-r border-border-default h-full p-5 space-y-4 animate-pulse">
+            <div className="h-5 bg-tertiary rounded w-2/3"></div>
+            <div className="h-3.5 bg-tertiary rounded w-full"></div>
+            <div className="grid grid-cols-4 gap-2 pt-4">
+              {Array.from({ length: 16 }).map((_, idx) => (
+                <div key={idx} className="aspect-square bg-tertiary rounded"></div>
+              ))}
+            </div>
+          </aside>
+
+          {/* Main Question Body Skeleton */}
+          <main className="flex-1 p-6 md:p-8 space-y-6 animate-pulse bg-primary overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border-default pb-4">
+              <div className="h-4 bg-tertiary rounded w-16"></div>
+              <div className="h-4 bg-tertiary rounded w-24"></div>
+            </div>
+            
+            {/* Question Card Skeleton */}
+            <div className="bg-secondary border border-border-default rounded-xl p-5 md:p-6 space-y-4">
+              <div className="h-5 bg-tertiary rounded w-full"></div>
+              <div className="h-5 bg-tertiary rounded w-4/5"></div>
+            </div>
+
+            {/* Answer Area Skeleton */}
+            <div className="space-y-3 pt-4">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="bg-secondary border border-border-default rounded-lg p-4 flex items-center space-x-3">
+                  <div className="w-4 h-4 rounded-full bg-tertiary shrink-0"></div>
+                  <div className="h-4 bg-tertiary rounded w-1/3"></div>
+                </div>
+              ))}
+            </div>
+          </main>
+        </div>
+
+        {/* Bottom Navigation controls Skeleton */}
+        <footer className="bg-secondary border-t border-border-default px-6 py-4 flex items-center justify-between animate-pulse">
+          <div className="h-10 bg-tertiary rounded w-24"></div>
+          <div className="h-10 bg-tertiary rounded w-20"></div>
+          <div className="h-10 bg-tertiary rounded w-24"></div>
+        </footer>
       </div>
     );
   }

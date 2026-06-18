@@ -94,7 +94,47 @@ const PlansPage = () => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  if (tierLoading) return null;
+  if (tierLoading) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-12 text-text-primary font-sans bg-primary min-h-screen">
+        {/* Back link and Titles Skeleton */}
+        <div>
+          <div className="h-4 bg-tertiary rounded w-28 animate-pulse"></div>
+          <div className="h-9 bg-tertiary rounded w-64 mx-auto mt-6 animate-pulse"></div>
+          <div className="h-4 bg-tertiary rounded w-72 mx-auto mt-1 animate-pulse"></div>
+        </div>
+
+        {/* Plan Cards Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-secondary border border-border-default rounded-xl p-6 relative flex flex-col animate-pulse min-h-[480px]"
+            >
+              <div>
+                <div className="h-6 bg-tertiary rounded w-1/3"></div>
+                <div className="h-10 bg-tertiary rounded w-1/2 mt-3"></div>
+                <div className="h-4 bg-tertiary rounded w-2/3 mt-2"></div>
+              </div>
+
+              <hr className="border-t border-border-default my-4" />
+
+              <div className="space-y-4 flex-1">
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <div key={j} className="flex items-center gap-2.5">
+                    <div className="h-4 bg-tertiary rounded-full w-4 shrink-0"></div>
+                    <div className="h-4 bg-tertiary rounded w-5/6"></div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="h-10 bg-tertiary rounded w-full mt-6"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-12 text-text-primary font-sans bg-primary min-h-screen">

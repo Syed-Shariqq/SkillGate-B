@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
+const JobQrCode = React.lazy(() => import("@/components/recruiter/JobQrCode"));
 import { useAuth } from "@/hooks/useAuth";
 import UpgradeBanner from "@/components/recruiter/UpgradeBanner";
 
@@ -135,9 +135,13 @@ const JobCreatedSuccess = () => {
 
             {/* QR Code */}
             <div className="mt-6 flex flex-col items-center">
-              <div className="bg-white p-3 rounded-lg inline-block">
-                <QRCodeSVG value={assessmentLink} size={160} />
-              </div>
+              <Suspense
+                fallback={
+                  <div className="bg-tertiary rounded-lg w-46 h-46" />
+                }
+              >
+                <JobQrCode value={assessmentLink} size={160} />
+              </Suspense>
             </div>
           </>
         )}
