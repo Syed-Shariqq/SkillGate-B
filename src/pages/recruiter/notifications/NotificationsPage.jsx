@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '@/context/AuthContext';
 import {
-  getAllNotifications,
-  markAllAsRead,
-  markOneAsRead,
-} from '@/services/recruiter/notificationService';
+  useAllNotificationsQuery,
+  useMarkAllNotificationsReadMutation,
+  useMarkOneNotificationReadMutation,
+} from '@/hooks/queries/useNotificationsQuery';
 
 const timeAgo = (dateStr) => {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -87,45 +87,30 @@ const getNotifIcon = (type) => {
 const NotificationsPage = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const fetchAllNotifs = async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    const { data, error: notifError } = await getAllNotifications(user.id);
-    if (notifError) {
-      setError('Failed to load notifications.');
-      setNotifications([]);
-    } else {
-      setNotifications(data || []);
-      setError(null);
-    }
-    setLoading(false);
-  };
+  const { data: notifications = [], isLoading: loading, error: queryError, refetch: fetchAllNotifs } = useAllNotificationsQuery(user?.id);
+  const markAllMutation = useMarkAllNotificationsReadMutation();
+  const markOneMutation = useMarkOneNotificationReadMutation();
 
-  useEffect(() => {
-    fetchAllNotifs();
-  }, [user?.id]);
+  const error = queryError ? 'Failed to load notifications.' : null;
 
   const handleMarkAllAsRead = async () => {
     if (!user?.id) return;
-    const { error: markError } = await markAllAsRead(user.id);
-    if (!markError) {
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await markAllMutation.mutateAsync({ recruiterId: user.id });
       window.dispatchEvent(new CustomEvent('notifications-marked-read', { detail: { all: true } }));
+    } catch (err) {
+      console.error(err);
     }
   };
 
   const handleNotifClick = async (notif) => {
     if (!notif.is_read) {
-      const { error: markError } = await markOneAsRead(notif.id);
-      if (!markError) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
-        );
+      try {
+        await markOneMutation.mutateAsync({ notificationId: notif.id, recruiterId: user.id });
         window.dispatchEvent(new CustomEvent('notifications-marked-read', { detail: { type: notif.type } }));
+      } catch (err) {
+        console.error(err);
       }
     }
     navigate(getNotifDestination(notif));

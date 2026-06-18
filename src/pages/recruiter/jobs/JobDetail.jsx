@@ -5,108 +5,53 @@ import CandidateRow from "@/components/recruiter/CandidateRow";
 import UpgradeBanner from "@/components/recruiter/UpgradeBanner";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
+import { exportCandidatesCSV } from "@/services/recruiter/jobsService";
+import { useQueryClient } from "@tanstack/react-query";
+import { useJobDetailsQuery } from "@/hooks/queries/useJobDetailsQuery";
 import {
-  getJobById,
-  getJobCandidates,
-  toggleJobActive,
-  updateCandidateStatus,
-  bulkUpdateCandidateStatus,
-  exportCandidatesCSV,
-} from "@/services/recruiter/jobsService";
+  useCandidatesQuery,
+  useUpdateCandidateStatusMutation,
+  useBulkUpdateCandidateStatusMutation,
+} from "@/hooks/queries/useCandidatesQuery";
+import { useToggleJobActiveMutation } from "@/hooks/queries/useJobsQuery";
 
 const JobDetail = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useContext(AuthContext);
 
-  const [job, setJob] = useState(null);
-  const [candidates, setCandidates] = useState([]);
-  const [jobLoading, setJobLoading] = useState(true);
-  const [candidatesLoading, setCandidatesLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const [jobError, setJobError] = useState(null);
-  const [candidatesError, setCandidatesError] = useState(null);
-  const [togglingActive, setTogglingActive] = useState(false);
+  const {
+    data: jobData,
+    isLoading: isJobLoading,
+    error: jobQueryError,
+    refetch: refetchJob,
+  } = useJobDetailsQuery(jobId, user?.id);
 
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("score");
-  const [search, setSearch] = useState("");
+  const {
+    data: candidatesData,
+    isLoading: isCandidatesLoading,
+    error: candidatesQueryError,
+    refetch: refetchCandidates,
+  } = useCandidatesQuery(jobId, user?.id);
 
-  const [copied, setCopied] = useState(false);
+  const [localJobError, setLocalJobError] = useState(null);
+  const [localCandidatesError, setLocalCandidatesError] = useState(null);
 
-  const loadAllData = async () => {
-    if (!user?.id || !jobId) return;
-    setJobLoading(true);
-    setCandidatesLoading(true);
-    setJobError(null);
-    setCandidatesError(null);
+  const job = jobData || null;
+  const candidates = candidatesData || [];
+  const jobLoading = isJobLoading;
+  const candidatesLoading = isCandidatesLoading;
 
-    try {
-      const [jobRes, candidatesRes] = await Promise.all([
-        getJobById(jobId, user.id),
-        getJobCandidates(jobId, user.id),
-      ]);
+  const jobError = localJobError || (jobQueryError ? "Failed to load job." : null);
+  const candidatesError = localCandidatesError || (candidatesQueryError ? "Failed to load candidates." : null);
 
-      if (jobRes.error) {
-        setJobError("Failed to load job.");
-      } else {
-        setJob(jobRes.data);
-      }
+  const toggleActiveMutation = useToggleJobActiveMutation();
+  const updateCandidateStatusMutation = useUpdateCandidateStatusMutation();
+  const bulkUpdateCandidateStatusMutation = useBulkUpdateCandidateStatusMutation();
 
-      if (candidatesRes.error) {
-        setCandidatesError("Failed to load candidates.");
-      } else {
-        setCandidates(candidatesRes.data || []);
-      }
-    } catch (err) {
-      setJobError("Failed to load job.");
-      setCandidatesError("Failed to load candidates.");
-    } finally {
-      setJobLoading(false);
-      setCandidatesLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAllData();
-  }, [jobId, user?.id]);
-
-  const fetchJobData = async () => {
-    if (!user?.id || !jobId) return;
-    setJobLoading(true);
-    setJobError(null);
-    try {
-      const { data, error } = await getJobById(jobId, user.id);
-      if (error) {
-        setJobError("Failed to load job.");
-      } else {
-        setJob(data);
-      }
-    } catch (err) {
-      setJobError("Failed to load job.");
-    } finally {
-      setJobLoading(false);
-    }
-  };
-
-  const fetchCandidatesData = async () => {
-    if (!user?.id || !jobId) return;
-    setCandidatesLoading(true);
-    setCandidatesError(null);
-    try {
-      const { data, error } = await getJobCandidates(jobId, user.id);
-      if (error) {
-        setCandidatesError("Failed to load candidates.");
-      } else {
-        setCandidates(data || []);
-      }
-    } catch (err) {
-      setCandidatesError("Failed to load candidates.");
-    } finally {
-      setCandidatesLoading(false);
-    }
-  };
+  const togglingActive = toggleActiveMutation.isPending;
 
   const handleRetryEvaluation = async (assessmentId) => {
     try {
@@ -119,7 +64,7 @@ const JobDetail = () => {
       }
 
       toast.success("Evaluation restarted successfully!");
-      fetchCandidatesData();
+      queryClient.invalidateQueries({ queryKey: ["candidates", jobId] });
     } catch (err) {
       console.error("Failed to retry evaluation:", err);
       toast.error(err.message || "Failed to retry evaluation. Please try again.");
@@ -127,26 +72,24 @@ const JobDetail = () => {
     }
   };
 
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("score");
+  const [search, setSearch] = useState("");
+
+  const [copied, setCopied] = useState(false);
+
   const handleToggleActive = async () => {
     if (!job || !user?.id) return;
-    const originalStatus = job.is_active;
-    const newStatus = !originalStatus;
-
-    setJob((prev) => ({ ...prev, is_active: newStatus }));
-    setTogglingActive(true);
-
-    try {
-      const { error } = await toggleJobActive(job.id, user.id, newStatus);
-      if (error) {
-        setJob((prev) => ({ ...prev, is_active: originalStatus }));
-        setJobError("Failed to update job status.");
+    setLocalJobError(null);
+    toggleActiveMutation.mutate(
+      { jobId: job.id, recruiterId: user.id, isActive: !job.is_active },
+      {
+        onError: () => {
+          setLocalJobError("Failed to update job status.");
+        },
       }
-    } catch (err) {
-      setJob((prev) => ({ ...prev, is_active: originalStatus }));
-      setJobError("Failed to update job status.");
-    } finally {
-      setTogglingActive(false);
-    }
+    );
   };
 
   const handleCopyLink = () => {
@@ -159,102 +102,58 @@ const JobDetail = () => {
 
   const handleShortlist = async (candidateId) => {
     if (!user?.id) return;
-    const prevCandidates = [...candidates];
-
-    setCandidates((prev) =>
-      prev.map((c) =>
-        c.id === candidateId
-          ? { ...c, status: "shortlisted", shortlisted: true, rejected: false }
-          : c
-      )
-    );
-
-    try {
-      const { error } = await updateCandidateStatus(candidateId, user.id, "shortlisted");
-      if (error) {
-        setCandidates(prevCandidates);
-        setCandidatesError("Failed to update candidate status.");
+    setLocalCandidatesError(null);
+    updateCandidateStatusMutation.mutate(
+      { candidateId, recruiterId: user.id, status: "shortlisted", jobId },
+      {
+        onError: () => {
+          setLocalCandidatesError("Failed to update candidate status.");
+        },
       }
-    } catch (err) {
-      setCandidates(prevCandidates);
-      setCandidatesError("Failed to update candidate status.");
-    }
+    );
   };
 
   const handleReject = async (candidateId) => {
     if (!user?.id) return;
-    const prevCandidates = [...candidates];
-
-    setCandidates((prev) =>
-      prev.map((c) =>
-        c.id === candidateId
-          ? { ...c, status: "rejected", shortlisted: false, rejected: true }
-          : c
-      )
-    );
-
-    try {
-      const { error } = await updateCandidateStatus(candidateId, user.id, "rejected");
-      if (error) {
-        setCandidates(prevCandidates);
-        setCandidatesError("Failed to update candidate status.");
+    setLocalCandidatesError(null);
+    updateCandidateStatusMutation.mutate(
+      { candidateId, recruiterId: user.id, status: "rejected", jobId },
+      {
+        onError: () => {
+          setLocalCandidatesError("Failed to update candidate status.");
+        },
       }
-    } catch (err) {
-      setCandidates(prevCandidates);
-      setCandidatesError("Failed to update candidate status.");
-    }
+    );
   };
 
   const handleBulkShortlist = async () => {
     if (!user?.id || selectedIds.length === 0) return;
-    const prevCandidates = [...candidates];
+    setLocalCandidatesError(null);
     const idsToUpdate = [...selectedIds];
-
-    setCandidates((prev) =>
-      prev.map((c) =>
-        idsToUpdate.includes(c.id)
-          ? { ...c, status: "shortlisted", shortlisted: true, rejected: false }
-          : c
-      )
-    );
     setSelectedIds([]);
-
-    try {
-      const { error } = await bulkUpdateCandidateStatus(idsToUpdate, user.id, "shortlisted");
-      if (error) {
-        setCandidates(prevCandidates);
-        setCandidatesError("Failed to bulk update candidates.");
+    bulkUpdateCandidateStatusMutation.mutate(
+      { candidateIds: idsToUpdate, recruiterId: user.id, status: "shortlisted", jobId },
+      {
+        onError: () => {
+          setLocalCandidatesError("Failed to bulk update candidates.");
+        },
       }
-    } catch (err) {
-      setCandidates(prevCandidates);
-      setCandidatesError("Failed to bulk update candidates.");
-    }
+    );
   };
 
   const handleBulkReject = async () => {
     if (!user?.id || selectedIds.length === 0) return;
-    const prevCandidates = [...candidates];
+    setLocalCandidatesError(null);
     const idsToUpdate = [...selectedIds];
-
-    setCandidates((prev) =>
-      prev.map((c) =>
-        idsToUpdate.includes(c.id)
-          ? { ...c, status: "rejected", shortlisted: false, rejected: true }
-          : c
-      )
-    );
     setSelectedIds([]);
-
-    try {
-      const { error } = await bulkUpdateCandidateStatus(idsToUpdate, user.id, "rejected");
-      if (error) {
-        setCandidates(prevCandidates);
-        setCandidatesError("Failed to bulk update candidates.");
+    bulkUpdateCandidateStatusMutation.mutate(
+      { candidateIds: idsToUpdate, recruiterId: user.id, status: "rejected", jobId },
+      {
+        onError: () => {
+          setLocalCandidatesError("Failed to bulk update candidates.");
+        },
       }
-    } catch (err) {
-      setCandidates(prevCandidates);
-      setCandidatesError("Failed to bulk update candidates.");
-    }
+    );
   };
 
   const handleBulkExport = () => {
@@ -361,7 +260,7 @@ const JobDetail = () => {
         <div className="flex items-center justify-between gap-4 rounded-lg border border-error/25 bg-error/15 px-4 py-3 text-sm text-error">
           <span>{jobError}</span>
           <button
-            onClick={fetchJobData}
+            onClick={refetchJob}
             className="font-semibold text-error hover:text-text-primary transition-smooth cursor-pointer"
           >
             Retry
@@ -476,7 +375,7 @@ const JobDetail = () => {
             <div className="flex items-center justify-between gap-4 rounded-lg border border-error/25 bg-error/15 px-4 py-3 text-sm text-error">
               <span>{candidatesError}</span>
               <button
-                onClick={fetchCandidatesData}
+                onClick={refetchCandidates}
                 className="font-semibold text-error hover:text-text-primary transition-smooth cursor-pointer"
               >
                 Retry

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import AuthContext from "@/context/AuthContext";
 import JobCard from "@/components/recruiter/JobCard";
 import EmptyState from "@/components/ui/EmptyState";
-import { getAllJobs } from "@/services/recruiter/jobsService";
+import { useJobsQuery } from "@/hooks/queries/useJobsQuery";
 
 const JOBS_PER_PAGE = 12;
 
@@ -11,31 +11,16 @@ const AllJobs = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [allJobs, setAllJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data, isLoading, error: queryError, refetch } = useJobsQuery(user?.id);
+
+  const allJobs = data || [];
+  const loading = isLoading;
+  const error = queryError ? "Failed to load jobs." : null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("All");
   const [sortBy, setSortBy] = useState("created_at");
   const [currentPage, setCurrentPage] = useState(1);
-
-  const fetchJobs = async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError(null);
-    const { data, error: fetchError } = await getAllJobs(user.id);
-    if (fetchError) {
-      setError("Failed to load jobs.");
-    } else {
-      setAllJobs(data || []);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchJobs();
-  }, [user?.id]);
 
   const filteredJobs = useMemo(() => {
     let result = [...allJobs];
@@ -138,7 +123,7 @@ const AllJobs = () => {
         <div className="flex items-center justify-between gap-4 rounded-lg border border-error/25 bg-error/15 px-4 py-3 text-sm text-error">
           <span>{error}</span>
           <button
-            onClick={fetchJobs}
+            onClick={refetch}
             className="font-semibold text-error hover:text-text-primary transition-smooth"
           >
             Retry

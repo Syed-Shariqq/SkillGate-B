@@ -1,14 +1,10 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthContext from "@/context/AuthContext";
 import JobCard from "@/components/recruiter/JobCard";
 import OnboardingChecklist from "@/components/recruiter/OnboardingChecklist";
 import SkeletonCard from "@/components/ui/SkeletonCard";
-import {
-  getDashboardStats,
-  getRecentActivity,
-  getRecentJobs,
-} from "@/services/recruiter/dashboardService";
+import { useDashboardQuery } from "@/hooks/queries/useDashboardQuery";
 
 const DASH = "\u2014";
 
@@ -39,88 +35,17 @@ const timeAgo = (date) => {
   return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
 };
 
-const readDashboardData = async (recruiterId) => {
-  const [statsResult, activityResult, jobsResult] = await Promise.all([
-    getDashboardStats(recruiterId),
-    getRecentActivity(recruiterId),
-    getRecentJobs(recruiterId),
-  ]);
-
-  const dashboardError = [statsResult, activityResult, jobsResult].find(
-    (result) => result.error,
-  )?.error;
-
-  if (dashboardError) throw dashboardError;
-
-  return {
-    statsData: statsResult.data,
-    activityData: activityResult.data,
-    jobsData: jobsResult.data,
-  };
-};
-
 const RecruiterDashboard = () => {
   const { user, profile } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [stats, setStats] = useState(DEFAULT_STATS);
-  const [activity, setActivity] = useState([]);
-  const [recentJobs, setRecentJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const loadDashboardData = async () => {
-    if (!user?.id) return;
+  const { data, isLoading, error: queryError, refetch } = useDashboardQuery(user?.id);
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { statsData, activityData, jobsData } = await readDashboardData(user.id);
-
-      setStats(statsData);
-      setActivity(activityData);
-      setRecentJobs(jobsData);
-    } catch (dashboardError) {
-      console.error("Dashboard data fetch error:", dashboardError);
-      setError("Failed to load dashboard data.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadInitialDashboardData = async () => {
-      if (!user?.id) return;
-
-      try {
-        const { statsData, activityData, jobsData } = await readDashboardData(user.id);
-
-        if (!isMounted) return;
-
-        setStats(statsData);
-        setActivity(activityData);
-        setRecentJobs(jobsData);
-        setError(null);
-      } catch (dashboardError) {
-        console.error("Dashboard data fetch error:", dashboardError);
-        if (isMounted) {
-          setError("Failed to load dashboard data.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadInitialDashboardData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.id]);
+  const stats = data?.statsData || DEFAULT_STATS;
+  const activity = data?.activityData || [];
+  const recentJobs = data?.jobsData || [];
+  const loading = isLoading;
+  const error = queryError ? "Failed to load dashboard data." : null;
 
   const statCards = [
     {
@@ -189,7 +114,7 @@ const RecruiterDashboard = () => {
 
   return (
     <div className="space-y-6 p-6">
-      <OnboardingChecklist profile={profile} />
+      <OnboardingChecklist profile={profile} /> 
 
       {hasNoJobs ? (
         <section className="flex min-h-[52vh] items-center justify-center rounded-xl border border-border-default bg-secondary px-6 py-12 text-center">
@@ -258,7 +183,7 @@ const RecruiterDashboard = () => {
               <button
                 className="font-semibold text-error transition-colors hover:text-text-primary"
                 type="button"
-                onClick={loadDashboardData}
+                onClick={refetch}
               >
                 Retry
               </button>

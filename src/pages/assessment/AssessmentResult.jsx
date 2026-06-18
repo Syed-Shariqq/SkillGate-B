@@ -452,7 +452,7 @@ export default function AssessmentResult() {
                 <div className="h-3.5 bg-tertiary rounded w-1/3"></div>
               </div>
               <div className="w-full flex justify-center py-4">
-                <div className="w-full h-[280px] bg-tertiary/20 rounded-2xl"></div>
+                <div className="w-full h-70 bg-tertiary/20 rounded-2xl"></div>
               </div>
             </div>
           </section>
@@ -636,7 +636,7 @@ export default function AssessmentResult() {
               <div className="w-full flex justify-center">
                 <Suspense
                   fallback={
-                    <div className="w-full h-[280px] bg-tertiary/20 animate-pulse rounded-2xl" />
+                    <div className="w-full h-70 bg-tertiary/20 animate-pulse rounded-2xl" />
                   }
                 >
                   <SkillRadarChart data={radarData} chartColors={chartColors} />

@@ -4,11 +4,12 @@ import AuthContext from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import {
-  getCandidateProfile,
-  updateCandidateStatus,
   saveInternalNote,
   retryPdfGeneration,
 } from "@/services/recruiter/candidateService";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCandidateDetailsQuery } from "@/hooks/queries/useCandidateDetailsQuery";
+import { useUpdateCandidateStatusMutation } from "@/hooks/queries/useCandidatesQuery";
 
 
 const CandidateProfile = () => {
@@ -16,11 +17,28 @@ const CandidateProfile = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
-  const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  const [statusState, setStatusState] = useState(null);
+  const {
+    data: profileData,
+    isLoading,
+    error: queryError,
+  } = useCandidateDetailsQuery(candidateId, user?.id);
+
+  const [localStatusState, setLocalStatusState] = useState(null);
+  const [localError, setLocalError] = useState(null);
+
+  const loading = isLoading;
+  const error = localError || (queryError ? "Failed to load candidate profile." : null);
+
+  useEffect(() => {
+    if (profileData?.candidate?.status) {
+      setLocalStatusState(profileData.candidate.status);
+    }
+  }, [profileData?.candidate?.status]);
+
+  const statusState = localStatusState || profileData?.candidate?.status || null;
+
   const [noteText, setNoteText] = useState("");
   const [showNote, setShowNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
@@ -28,24 +46,7 @@ const CandidateProfile = () => {
   const [retryLoading, setRetryLoading] = useState(false);
   const [retryPdfLoading, setRetryPdfLoading] = useState(false);
 
-  const loadProfile = async () => {
-    if (!user?.id || !candidateId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error: fetchError } = await getCandidateProfile(candidateId, user.id);
-      if (fetchError) {
-        setError(fetchError.message || "Failed to load candidate profile.");
-      } else if (data) {
-        setProfileData(data);
-        setStatusState(data.candidate.status);
-      }
-    } catch (err) {
-      setError("An unexpected error occurred.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const updateStatusMutation = useUpdateCandidateStatusMutation();
 
   const handleRetryEvaluation = async () => {
     if (!profileData?.assessment?.id) return;
@@ -60,7 +61,7 @@ const CandidateProfile = () => {
       }
 
       toast.success("Evaluation restarted successfully!");
-      loadProfile();
+      queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
     } catch (err) {
       console.error("Failed to retry evaluation:", err);
       toast.error(err.message || "Failed to retry evaluation. Please try again.");
@@ -82,9 +83,8 @@ const CandidateProfile = () => {
         throw error;
       }
 
-
       toast.success("PDF generation restarted!");
-      loadProfile();
+      queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
     } catch (err) {
       console.error("Failed to retry PDF generation:", err);
       toast.error(err.message || "Failed to retry PDF generation. Please try again.");
@@ -93,49 +93,45 @@ const CandidateProfile = () => {
     }
   };
 
-  useEffect(() => {
-    loadProfile();
-  }, [candidateId, user?.id]);
-
   const handleShortlist = async () => {
     if (!user?.id || !profileData?.candidate) return;
-    const prevStatus = statusState;
-    setStatusState("shortlisted");
-
-    try {
-      const { error: updateError } = await updateCandidateStatus(
-        profileData.candidate.id,
-        user.id,
-        "shortlisted"
-      );
-      if (updateError) {
-        setStatusState(prevStatus);
-        setError("Failed to update candidate status.");
+    setLocalStatusState("shortlisted");
+    setLocalError(null);
+    updateStatusMutation.mutate(
+      {
+        candidateId: profileData.candidate.id,
+        recruiterId: user.id,
+        status: "shortlisted",
+        jobId: profileData.candidate.job_id,
+      },
+      {
+        onError: () => {
+          setLocalStatusState(profileData.candidate.status);
+          setLocalError("Failed to update candidate status.");
+        },
       }
-    } catch (err) {
-      setStatusState(prevStatus);
-    }
+    );
   };
 
   const handleReject = async () => {
     if (!user?.id || !profileData?.candidate) return;
-    const prevStatus = statusState;
-    setStatusState("rejected");
+    setLocalStatusState("rejected");
     setShowRejectConfirm(false);
-
-    try {
-      const { error: updateError } = await updateCandidateStatus(
-        profileData.candidate.id,
-        user.id,
-        "rejected"
-      );
-      if (updateError) {
-        setStatusState(prevStatus);
-        setError("Failed to update candidate status.");
+    setLocalError(null);
+    updateStatusMutation.mutate(
+      {
+        candidateId: profileData.candidate.id,
+        recruiterId: user.id,
+        status: "rejected",
+        jobId: profileData.candidate.job_id,
+      },
+      {
+        onError: () => {
+          setLocalStatusState(profileData.candidate.status);
+          setLocalError("Failed to update candidate status.");
+        },
       }
-    } catch (err) {
-      setStatusState(prevStatus);
-    }
+    );
   };
 
   const handleSaveNote = async () => {
@@ -149,6 +145,7 @@ const CandidateProfile = () => {
       if (!noteError) {
         setNoteSaved(true);
         setTimeout(() => setNoteSaved(false), 2000);
+        queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
       }
     } catch (err) {
       // Inline state error handling

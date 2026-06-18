@@ -4,7 +4,14 @@ import AuthContext from "@/context/AuthContext";
 import { supabase } from "@/config/supabase";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import SkeletonCard from "@/components/ui/SkeletonCard";
-import { getRecentNotifications, markAllAsRead, markOneAsRead } from '@/services/recruiter/notificationService';
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useRecentNotificationsQuery,
+  useUnreadNotificationsCountQuery,
+  useFailedEmailNotificationsCountQuery,
+  useMarkAllNotificationsReadMutation,
+  useMarkOneNotificationReadMutation,
+} from "@/hooks/queries/useNotificationsQuery";
 
 const navItems = [
   {
@@ -269,16 +276,20 @@ const RecruiterLayout = ({ children }) => {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useContext(AuthContext);
 
+  const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [quotaUsage, setQuotaUsage] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [dismissedQuotaKeys, setDismissedQuotaKeys] = useState(() => new Set());
-  const [notifications, setNotifications] = useState([]);
-  const [notifLoading, setNotifLoading] = useState(false);
-  const [failedEmailCount, setFailedEmailCount] = useState(0);
   const [failedEmailDismissed, setFailedEmailDismissed] = useState(false);
+
+  const { data: unreadCount = 0 } = useUnreadNotificationsCountQuery(user?.id);
+  const { data: notifications = [], isLoading: notifLoading, refetch: refetchRecent } = useRecentNotificationsQuery(user?.id);
+  const { data: failedEmailCount = 0 } = useFailedEmailNotificationsCountQuery(user?.id);
+
+  const markAllMutation = useMarkAllNotificationsReadMutation();
+  const markOneMutation = useMarkOneNotificationReadMutation();
 
   const fullName =
     profile?.full_name || user?.user_metadata?.name || user?.email || "Recruiter";
@@ -304,24 +315,11 @@ const RecruiterLayout = ({ children }) => {
     const fetchLayoutData = async () => {
       setQuotaLoading(true);
 
-      const [quotaResult, notificationResult, failedEmailResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("assessments_used, assessments_limit")
-          .eq("id", user.id)
-          .maybeSingle(),
-        supabase
-          .from("notifications")
-          .select("id", { count: "exact", head: true })
-          .eq("recruiter_id", user.id)
-          .eq("is_read", false),
-        supabase
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recruiter_id', user.id)
-          .eq('type', 'email_failed')
-          .eq('is_read', false)
-      ]);
+      const quotaResult = await supabase
+        .from("profiles")
+        .select("assessments_used, assessments_limit")
+        .eq("id", user.id)
+        .maybeSingle();
 
       if (!isMounted) return;
 
@@ -330,20 +328,6 @@ const RecruiterLayout = ({ children }) => {
         setQuotaUsage(null);
       } else {
         setQuotaUsage(quotaResult.data || null);
-      }
-
-      if (notificationResult.error) {
-        console.error("Unread notification fetch error:", notificationResult.error);
-        setUnreadCount(0);
-      } else {
-        setUnreadCount(notificationResult.count || 0);
-      }
-
-      if (failedEmailResult.error) {
-        console.error('Failed email count fetch error:', failedEmailResult.error);
-        setFailedEmailCount(0);
-      } else {
-        setFailedEmailCount(failedEmailResult.count || 0);
       }
 
       setQuotaLoading(false);
@@ -358,41 +342,15 @@ const RecruiterLayout = ({ children }) => {
         schema: 'public',
         table: 'notifications',
         filter: `recruiter_id=eq.${user.id}`,
-      }, async () => {
+      }, () => {
         if (!isMounted) return;
-        const [notificationResult, failedEmailResult] = await Promise.all([
-          supabase
-            .from("notifications")
-            .select("id", { count: "exact", head: true })
-            .eq("recruiter_id", user.id)
-            .eq("is_read", false),
-          supabase
-            .from('notifications')
-            .select('id', { count: 'exact', head: true })
-            .eq('recruiter_id', user.id)
-            .eq('type', 'email_failed')
-            .eq('is_read', false)
-        ]);
-        if (!isMounted) return;
-        if (!notificationResult.error) {
-          setUnreadCount(notificationResult.count || 0);
-        }
-        if (!failedEmailResult.error) {
-          setFailedEmailCount(failedEmailResult.count || 0);
-        }
+        queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
       })
       .subscribe();
 
-    const handleVisibilityChange = async () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isMounted) {
-        const { count } = await supabase
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recruiter_id', user.id)
-          .eq('is_read', false);
-        if (isMounted) {
-          setUnreadCount(count || 0);
-        }
+        queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
       }
     };
 
@@ -403,25 +361,7 @@ const RecruiterLayout = ({ children }) => {
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user?.id]);
-
-  useEffect(() => {
-    const handleMarkedRead = (e) => {
-      if (e.detail?.all) {
-        setUnreadCount(0);
-        setFailedEmailCount(0);
-      } else {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-        if (e.detail?.type === 'email_failed') {
-          setFailedEmailCount((prev) => Math.max(0, prev - 1));
-        }
-      }
-    };
-    window.addEventListener("notifications-marked-read", handleMarkedRead);
-    return () => {
-      window.removeEventListener("notifications-marked-read", handleMarkedRead);
-    };
-  }, []);
+  }, [user?.id, queryClient]);
 
 
   const quotaPercent = useMemo(() => {
@@ -456,27 +396,22 @@ const RecruiterLayout = ({ children }) => {
     setFailedEmailDismissed(true);
   };
 
-  const fetchNotifications = async () => {
-    if (!user?.id) return;
-    setNotifLoading(true);
-    const { data } = await getRecentNotifications(user.id);
-    setNotifications(data || []);
-    setNotifLoading(false);
-  };
-
   const handleMarkAllAsRead = async () => {
-    await markAllAsRead(user.id);
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    setUnreadCount(0);
+    if (!user?.id) return;
+    try {
+      await markAllMutation.mutateAsync({ recruiterId: user.id });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleNotifClick = async (notif) => {
     if (!notif.is_read) {
-      await markOneAsRead(notif.id);
-      setNotifications(prev =>
-        prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      try {
+        await markOneMutation.mutateAsync({ notificationId: notif.id, recruiterId: user.id });
+      } catch (err) {
+        console.error(err);
+      }
     }
     setNotificationOpen(false);
     navigate(getNotifDestination(notif));
@@ -560,7 +495,7 @@ const RecruiterLayout = ({ children }) => {
                 onClick={() => {
                   const next = !notificationOpen;
                   setNotificationOpen(next);
-                  if (next) fetchNotifications();
+                  if (next) refetchRecent();
                 }}
                 className="relative flex h-10 w-10 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
                 aria-label="Toggle notifications"
