@@ -64,8 +64,6 @@ export const useToggleJobActiveMutation = () => {
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: ["jobs", variables.recruiterId] });
-      queryClient.invalidateQueries({ queryKey: ["job", variables.jobId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard", variables.recruiterId] });
     },
   });
 };
