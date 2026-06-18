@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import AuthContext from '@/context/AuthContext';
 import { useAnalyticsJobsQuery } from '@/hooks/queries/useAnalyticsJobsQuery';
 import { useAnalyticsQuery } from '@/hooks/queries/useAnalyticsQuery';
+import SectionErrorBoundary from '@/components/SectionErrorBoundary';
 import {
   BarChart,
   Bar,
@@ -295,82 +296,86 @@ const RecruiterAnalytics = () => {
             {/* Score Distribution */}
             <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col justify-between">
               <h2 className="text-text-primary font-semibold mb-4">Score Distribution</h2>
-              {scoreDistribution.every((d) => d.count === 0) ? (
-                <div className="flex items-center justify-center h-50">
-                  <p className="text-text-tertiary text-sm">No score data yet</p>
-                </div>
-              ) : (
-                <div className="h-50 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={scoreDistribution}>
-                      <XAxis dataKey="range" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} />
-                      <YAxis tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={{
-                          background: 'var(--color-secondary)',
-                          border: '1px solid var(--color-border-default)',
-                          borderRadius: 8,
-                        }}
-                        labelStyle={{ color: 'var(--color-text-primary)' }}
-                        itemStyle={{ color: 'var(--color-text-secondary)' }}
-                      />
-                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                        {scoreDistribution.map((entry, index) => (
-                          <Cell
-                            key={index}
-                            fill={
-                              entry.range.startsWith('7') ||
-                              entry.range.startsWith('8') ||
-                              entry.range.startsWith('9')
-                                ? 'var(--color-success)'
-                                : entry.range.startsWith('5') ||
-                                  entry.range.startsWith('6')
-                                ? 'var(--color-warning)'
-                                : 'var(--color-accent)'
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              <SectionErrorBoundary sectionName="ScoreDistributionChart" fallbackTitle="Score distribution chart couldn't load">
+                {scoreDistribution.every((d) => d.count === 0) ? (
+                  <div className="flex items-center justify-center h-50">
+                    <p className="text-text-tertiary text-sm">No score data yet</p>
+                  </div>
+                ) : (
+                  <div className="h-50 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={scoreDistribution}>
+                        <XAxis dataKey="range" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} />
+                        <YAxis tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} allowDecimals={false} />
+                        <Tooltip
+                          contentStyle={{
+                            background: 'var(--color-secondary)',
+                            border: '1px solid var(--color-border-default)',
+                            borderRadius: 8,
+                          }}
+                          labelStyle={{ color: 'var(--color-text-primary)' }}
+                          itemStyle={{ color: 'var(--color-text-secondary)' }}
+                        />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                          {scoreDistribution.map((entry, index) => (
+                            <Cell
+                              key={index}
+                              fill={
+                                entry.range.startsWith('7') ||
+                                entry.range.startsWith('8') ||
+                                entry.range.startsWith('9')
+                                  ? 'var(--color-success)'
+                                  : entry.range.startsWith('5') ||
+                                    entry.range.startsWith('6')
+                                  ? 'var(--color-warning)'
+                                  : 'var(--color-accent)'
+                              }
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </SectionErrorBoundary>
             </div>
 
             {/* Completion Trend */}
             <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col justify-between">
               <h2 className="text-text-primary font-semibold mb-4">Completion Trend</h2>
-              {completionTrend.length === 0 || completionTrend.every((d) => d.count === 0) ? (
-                <div className="flex items-center justify-center h-50">
-                  <p className="text-text-tertiary text-sm">No completions in this date range</p>
-                </div>
-              ) : (
-                <div className="h-50 w-full">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={completionTrend}>
-                      <XAxis dataKey="date" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} />
-                      <YAxis tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={{
-                          background: 'var(--color-secondary)',
-                          border: '1px solid var(--color-border-default)',
-                          borderRadius: 8,
-                        }}
-                        labelStyle={{ color: 'var(--color-text-primary)' }}
-                        itemStyle={{ color: 'var(--color-text-secondary)' }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="count"
-                        stroke="var(--color-accent)"
-                        strokeWidth={2}
-                        dot={{ fill: 'var(--color-accent)', r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              <SectionErrorBoundary sectionName="CompletionTrendChart" fallbackTitle="Completion trend chart couldn't load">
+                {completionTrend.length === 0 || completionTrend.every((d) => d.count === 0) ? (
+                  <div className="flex items-center justify-center h-50">
+                    <p className="text-text-tertiary text-sm">No completions in this date range</p>
+                  </div>
+                ) : (
+                  <div className="h-50 w-full">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={completionTrend}>
+                        <XAxis dataKey="date" tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} />
+                        <YAxis tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} allowDecimals={false} />
+                        <Tooltip
+                          contentStyle={{
+                            background: 'var(--color-secondary)',
+                            border: '1px solid var(--color-border-default)',
+                            borderRadius: 8,
+                          }}
+                          labelStyle={{ color: 'var(--color-text-primary)' }}
+                          itemStyle={{ color: 'var(--color-text-secondary)' }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="count"
+                          stroke="var(--color-accent)"
+                          strokeWidth={2}
+                          dot={{ fill: 'var(--color-accent)', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </SectionErrorBoundary>
             </div>
           </div>
 
@@ -379,69 +384,71 @@ const RecruiterAnalytics = () => {
             {/* Assessment Funnel */}
             <div className="bg-secondary border border-border-default rounded-xl p-5">
               <h2 className="text-text-primary font-semibold mb-4">Assessment Funnel</h2>
-              <div className="space-y-4">
-                {/* Opened Link */}
-                <div className="w-full">
-                  <div className="flex justify-between items-center mb-1 text-sm">
-                    <span className="text-text-tertiary">Opened Link</span>
-                    <span className="font-mono text-text-tertiary">
-                      {analytics.funnel.opened !== null ? analytics.funnel.opened : '—'}{' '}
-                      {analytics.funnel.opened === null && (
-                        <span className="text-text-tertiary text-xs">(redirect tracking required)</span>
-                      )}
-                    </span>
+              <SectionErrorBoundary sectionName="AssessmentFunnel" fallbackTitle="Assessment funnel couldn't load">
+                <div className="space-y-4">
+                  {/* Opened Link */}
+                  <div className="w-full">
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                      <span className="text-text-tertiary">Opened Link</span>
+                      <span className="font-mono text-text-tertiary">
+                        {analytics.funnel.opened !== null ? analytics.funnel.opened : '—'}{' '}
+                        {analytics.funnel.opened === null && (
+                          <span className="text-text-tertiary text-xs">(redirect tracking required)</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden relative">
+                      <div
+                        className="h-full bg-accent"
+                        style={{ width: `${analytics.funnel.opened !== null ? 100 : 0}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden relative">
-                    <div
-                      className="h-full bg-accent"
-                      style={{ width: `${analytics.funnel.opened !== null ? 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
 
-                {/* Started */}
-                <div className="w-[85%]">
-                  <div className="flex justify-between items-center mb-1 text-sm">
-                    <span className="text-text-secondary">Started</span>
-                    <span className="font-mono text-text-primary font-bold">{funnel.started}</span>
+                  {/* Started */}
+                  <div className="w-[85%]">
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                      <span className="text-text-secondary">Started</span>
+                      <span className="font-mono text-text-primary font-bold">{funnel.started}</span>
+                    </div>
+                    <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden">
+                      <div className="h-full bg-accent rounded-lg" style={{ width: '100%' }} />
+                    </div>
                   </div>
-                  <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden">
-                    <div className="h-full bg-accent rounded-lg" style={{ width: '100%' }} />
-                  </div>
-                </div>
 
-                {/* Completed */}
-                <div className="w-[70%]">
-                  <div className="flex justify-between items-center mb-1 text-sm">
-                    <span className="text-text-secondary">Completed</span>
-                    <span className="font-mono text-text-primary font-bold">{funnel.completed}</span>
+                  {/* Completed */}
+                  <div className="w-[70%]">
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                      <span className="text-text-secondary">Completed</span>
+                      <span className="font-mono text-text-primary font-bold">{funnel.completed}</span>
+                    </div>
+                    <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-accent rounded-lg"
+                        style={{
+                          width: `${funnel.started > 0 ? (funnel.completed / funnel.started) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden">
-                    <div
-                      className="h-full bg-accent rounded-lg"
-                      style={{
-                        width: `${funnel.started > 0 ? (funnel.completed / funnel.started) * 100 : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
 
-                {/* Passed */}
-                <div className="w-[55%]">
-                  <div className="flex justify-between items-center mb-1 text-sm">
-                    <span className="text-text-secondary">Passed</span>
-                    <span className="font-mono text-text-primary font-bold">{funnel.passed}</span>
-                  </div>
-                  <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden">
-                    <div
-                      className="h-full bg-accent rounded-lg"
-                      style={{
-                        width: `${funnel.started > 0 ? (funnel.passed / funnel.started) * 100 : 0}%`,
-                      }}
-                    />
+                  {/* Passed */}
+                  <div className="w-[55%]">
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                      <span className="text-text-secondary">Passed</span>
+                      <span className="font-mono text-text-primary font-bold">{funnel.passed}</span>
+                    </div>
+                    <div className="h-6 w-full bg-accent/20 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-accent rounded-lg"
+                        style={{
+                          width: `${funnel.started > 0 ? (funnel.passed / funnel.started) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              </SectionErrorBoundary>
             </div>
 
             {/* Most Missed Skills */}
@@ -451,30 +458,32 @@ const RecruiterAnalytics = () => {
                 <p className="text-text-tertiary text-xs mb-4 mt-1">
                   Skills with lowest average scores across all candidates
                 </p>
-                {missedSkills.length === 0 ? (
-                  <div className="flex items-center justify-center h-40">
-                    <p className="text-text-tertiary text-sm">Not enough data yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {missedSkills.map((skill) => (
-                      <div key={skill.skill} className="space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-text-primary text-sm font-medium">{skill.skill}</span>
-                          <span className={`font-mono text-sm font-semibold ${getScoreTextClass(skill.avgScore)}`}>
-                            {skill.avgScore}%
-                          </span>
+                <SectionErrorBoundary sectionName="MostMissedSkills" fallbackTitle="Missed skills analysis couldn't load">
+                  {missedSkills.length === 0 ? (
+                    <div className="flex items-center justify-center h-40">
+                      <p className="text-text-tertiary text-sm">Not enough data yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {missedSkills.map((skill) => (
+                        <div key={skill.skill} className="space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <span className="text-text-primary text-sm font-medium">{skill.skill}</span>
+                            <span className={`font-mono text-sm font-semibold ${getScoreTextClass(skill.avgScore)}`}>
+                              {skill.avgScore}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-tertiary rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${getScoreBgClass(skill.avgScore)}`}
+                              style={{ width: `${skill.avgScore}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-full bg-tertiary rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${getScoreBgClass(skill.avgScore)}`}
-                            style={{ width: `${skill.avgScore}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </SectionErrorBoundary>
               </div>
             </div>
           </div>

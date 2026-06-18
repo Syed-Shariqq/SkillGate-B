@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import SectionErrorBoundary from "@/components/SectionErrorBoundary";
 
 const SkillRadarChart = React.lazy(() => import("@/components/assessment/SkillRadarChart"));
 
@@ -634,13 +635,15 @@ export default function AssessmentResult() {
 
               {/* Radar Chart responsive container */}
               <div className="w-full flex justify-center">
-                <Suspense
-                  fallback={
-                    <div className="w-full h-70 bg-tertiary/20 animate-pulse rounded-2xl" />
-                  }
-                >
-                  <SkillRadarChart data={radarData} chartColors={chartColors} />
-                </Suspense>
+                <SectionErrorBoundary sectionName="SkillRadarChart" fallbackTitle="Skill radar chart couldn't load">
+                  <Suspense
+                    fallback={
+                      <div className="w-full h-70 bg-tertiary/20 animate-pulse rounded-2xl" />
+                    }
+                  >
+                    <SkillRadarChart data={radarData} chartColors={chartColors} />
+                  </Suspense>
+                </SectionErrorBoundary>
               </div>
 
               {/* Textual Accessibility Summary */}
@@ -658,81 +661,83 @@ export default function AssessmentResult() {
               Question Breakdown
             </h2>
 
-            {result.questionResults.map((q, idx) => {
-              const isExpanded = expandedQuestions.has(q.questionId);
-              const scoreBadge = q.score !== null ? `${q.score}/1` : "—";
+            <SectionErrorBoundary sectionName="QuestionBreakdown" fallbackTitle="Question breakdown couldn't load">
+              {result.questionResults.map((q, idx) => {
+                const isExpanded = expandedQuestions.has(q.questionId);
+                const scoreBadge = q.score !== null ? `${q.score}/1` : "—";
 
-              return (
-                <div
-                  key={q.questionId || idx}
-                  className="bg-secondary border border-border-default rounded-xl mb-3 overflow-hidden shadow-sm"
-                >
-                  <button
-                    type="button"
-                    aria-expanded={isExpanded}
-                    aria-controls={`faq-content-${q.questionId}`}
-                    onClick={() => toggleQuestion(q.questionId)}
-                    className="flex items-center justify-between p-4 w-full text-left focus:outline-none hover:bg-tertiary transition-colors"
+                return (
+                  <div
+                    key={q.questionId || idx}
+                    className="bg-secondary border border-border-default rounded-xl mb-3 overflow-hidden shadow-sm"
                   >
-                    {/* Left Info */}
-                    <div className="flex items-center min-w-0 mr-3">
-                      <span className="bg-tertiary text-text-tertiary font-mono text-xs px-2 py-0.5 rounded mr-3 shrink-0 select-none">
-                        Q{idx + 1}
-                      </span>
-                      <span className="text-text-primary text-sm font-medium truncate">
-                        {q.questionText || "Assessed Question"}
-                      </span>
-                    </div>
-
-                    {/* Right Badges & Chevron */}
-                    <div className="flex items-center gap-3 shrink-0 select-none">
-                      <span className="bg-accent/15 text-accent font-mono text-xs px-2 py-0.5 rounded">
-                        {scoreBadge}
-                      </span>
-
-                      {/* Rotating Chevron inline SVG */}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`w-4 h-4 transition-transform duration-200 ${
-                          isExpanded ? "rotate-180" : ""
-                        }`}
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </div>
-                  </button>
-
-                  {/* Expanded AI feedback panel */}
-                  {isExpanded && (
-                    <div
-                      id={`faq-content-${q.questionId}`}
-                      className="px-4 pb-4 pt-4 border-t border-border-default bg-tertiary/10 animate-fade-in-up"
+                    <button
+                      type="button"
+                      aria-expanded={isExpanded}
+                      aria-controls={`faq-content-${q.questionId}`}
+                      onClick={() => toggleQuestion(q.questionId)}
+                      className="flex items-center justify-between p-4 w-full text-left focus:outline-none hover:bg-tertiary transition-colors"
                     >
-                      <h4 className="font-mono text-xs uppercase tracking-wider text-text-tertiary mb-2 font-semibold select-none">
-                        AI Feedback
-                      </h4>
-                      {q.feedback ? (
-                        <p className="text-text-secondary text-sm leading-relaxed">
-                          {q.feedback}
-                        </p>
-                      ) : (
-                        <p className="text-text-tertiary italic text-sm">
-                          Feedback is being generated...
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                      {/* Left Info */}
+                      <div className="flex items-center min-w-0 mr-3">
+                        <span className="bg-tertiary text-text-tertiary font-mono text-xs px-2 py-0.5 rounded mr-3 shrink-0 select-none">
+                          Q{idx + 1}
+                        </span>
+                        <span className="text-text-primary text-sm font-medium truncate">
+                          {q.questionText || "Assessed Question"}
+                        </span>
+                      </div>
+
+                      {/* Right Badges & Chevron */}
+                      <div className="flex items-center gap-3 shrink-0 select-none">
+                        <span className="bg-accent/15 text-accent font-mono text-xs px-2 py-0.5 rounded">
+                          {scoreBadge}
+                        </span>
+
+                        {/* Rotating Chevron inline SVG */}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className={`w-4 h-4 transition-transform duration-200 ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Expanded AI feedback panel */}
+                    {isExpanded && (
+                      <div
+                        id={`faq-content-${q.questionId}`}
+                        className="px-4 pb-4 pt-4 border-t border-border-default bg-tertiary/10 animate-fade-in-up"
+                      >
+                        <h4 className="font-mono text-xs uppercase tracking-wider text-text-tertiary mb-2 font-semibold select-none">
+                          AI Feedback
+                        </h4>
+                        {q.feedback ? (
+                          <p className="text-text-secondary text-sm leading-relaxed">
+                            {q.feedback}
+                          </p>
+                        ) : (
+                          <p className="text-text-tertiary italic text-sm">
+                            Feedback is being generated...
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </SectionErrorBoundary>
           </section>
         )}
 

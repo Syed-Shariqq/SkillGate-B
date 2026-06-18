@@ -4,6 +4,7 @@ import AuthContext from "@/context/AuthContext";
 import JobCard from "@/components/recruiter/JobCard";
 import OnboardingChecklist from "@/components/recruiter/OnboardingChecklist";
 import SkeletonCard from "@/components/ui/SkeletonCard";
+import SectionErrorBoundary from "@/components/SectionErrorBoundary";
 import { useDashboardQuery } from "@/hooks/queries/useDashboardQuery";
 
 const DASH = "\u2014";
@@ -157,24 +158,26 @@ const RecruiterDashboard = () => {
       ) : (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {loading
-              ? Array.from({ length: 4 }).map((_, index) => (
-                  <SkeletonCard key={index} rows={2} className="min-h-32" />
-                ))
-              : statCards.map((card) => (
-                  <div
-                    key={card.label}
-                    className="rounded-xl border border-border-default bg-secondary p-5"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <p className="text-sm text-text-secondary">{card.label}</p>
-                      <span className="text-text-tertiary">{card.icon}</span>
+            <SectionErrorBoundary sectionName="StatsCards" fallbackTitle="Statistics couldn't load">
+              {loading
+                ? Array.from({ length: 4 }).map((_, index) => (
+                    <SkeletonCard key={index} rows={2} className="min-h-32" />
+                  ))
+                : statCards.map((card) => (
+                    <div
+                      key={card.label}
+                      className="rounded-xl border border-border-default bg-secondary p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <p className="text-sm text-text-secondary">{card.label}</p>
+                        <span className="text-text-tertiary">{card.icon}</span>
+                      </div>
+                      <p className="mt-5 font-mono text-3xl font-bold text-text-primary">
+                        {card.value}
+                      </p>
                     </div>
-                    <p className="mt-5 font-mono text-3xl font-bold text-text-primary">
-                      {card.value}
-                    </p>
-                  </div>
-                ))}
+                  ))}
+            </SectionErrorBoundary>
           </section>
 
           {error && (
@@ -196,50 +199,52 @@ const RecruiterDashboard = () => {
                 Recent Activity
               </h2>
 
-              <div className="mt-4 space-y-2">
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between gap-4 rounded-lg border border-border-default bg-primary px-4 py-3"
-                    >
-                      <div className="h-4 w-2/3 animate-pulse rounded bg-tertiary" />
-                      <div className="h-3 w-20 animate-pulse rounded bg-tertiary" />
-                    </div>
-                  ))
-                ) : activity.length > 0 ? (
-                  activity.map((entry) => (
-                    <button
-                      key={entry.id}
-                      className="flex w-full items-center justify-between gap-4 rounded-lg px-4 py-3 text-left transition-colors hover:bg-tertiary"
-                      type="button"
-                      onClick={() => navigate(`/candidates/${entry.candidateId}`)}
-                    >
-                      <span className="min-w-0 text-sm text-text-secondary">
-                        <span className="font-medium text-text-primary">
-                          {entry.candidateName}
+              <SectionErrorBoundary sectionName="RecentActivity" fallbackTitle="Recent activity couldn't load">
+                <div className="mt-4 space-y-2">
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between gap-4 rounded-lg border border-border-default bg-primary px-4 py-3"
+                      >
+                        <div className="h-4 w-2/3 animate-pulse rounded bg-tertiary" />
+                        <div className="h-3 w-20 animate-pulse rounded bg-tertiary" />
+                      </div>
+                    ))
+                  ) : activity.length > 0 ? (
+                    activity.map((entry) => (
+                      <button
+                        key={entry.id}
+                        className="flex w-full items-center justify-between gap-4 rounded-lg px-4 py-3 text-left transition-colors hover:bg-tertiary"
+                        type="button"
+                        onClick={() => navigate(`/candidates/${entry.candidateId}`)}
+                      >
+                        <span className="min-w-0 text-sm text-text-secondary">
+                          <span className="font-medium text-text-primary">
+                            {entry.candidateName}
+                          </span>
+                          <span
+                            className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                              entry.passed ? "bg-success/15 text-success" : "bg-error/15 text-error"
+                            }`}
+                          >
+                            {entry.passed ? "Passed" : "Failed"}
+                          </span>
+                          <span> completed </span>
+                          <span className="text-text-primary">{entry.jobTitle}</span>
                         </span>
-                        <span
-                          className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            entry.passed ? "bg-success/15 text-success" : "bg-error/15 text-error"
-                          }`}
-                        >
-                          {entry.passed ? "Passed" : "Failed"}
+                        <span className="shrink-0 text-xs text-text-tertiary">
+                          {timeAgo(entry.completedAt)}
                         </span>
-                        <span> completed </span>
-                        <span className="text-text-primary">{entry.jobTitle}</span>
-                      </span>
-                      <span className="shrink-0 text-xs text-text-tertiary">
-                        {timeAgo(entry.completedAt)}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="py-6 text-sm text-text-tertiary">
-                    No activity yet {DASH} share your first assessment link to get started
-                  </p>
-                )}
-              </div>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="py-6 text-sm text-text-tertiary">
+                      No activity yet {DASH} share your first assessment link to get started
+                    </p>
+                  )}
+                </div>
+              </SectionErrorBoundary>
             </div>
 
             <div className="rounded-xl border border-border-default bg-secondary p-5">
@@ -252,27 +257,29 @@ const RecruiterDashboard = () => {
                 </Link>
               </div>
 
-              <div className="mt-4 grid gap-4">
-                {loading
-                  ? Array.from({ length: 3 }).map((_, index) => (
-                      <JobCard key={index} loading skeleton />
-                    ))
-                  : recentJobs.map((job) => (
-                      <JobCard
-                        key={job.id}
-                        id={job.id}
-                        title={job.title}
-                        companyName={job.company_name}
-                        status={job.is_active ? "active" : "inactive"}
-                        candidateCount={job.candidate_count}
-                        avgScore={job.avg_score === null ? null : Math.round(job.avg_score)}
-                        passRate={job.pass_rate}
-                        linkUsageCurrent={job.link_use_count}
-                        linkUsageMax={job.link_max_uses}
-                        createdAt={job.created_at}
-                      />
-                    ))}
-              </div>
+              <SectionErrorBoundary sectionName="RecentJobs" fallbackTitle="Recent jobs couldn't load">
+                <div className="mt-4 grid gap-4">
+                  {loading
+                    ? Array.from({ length: 3 }).map((_, index) => (
+                        <JobCard key={index} loading skeleton />
+                      ))
+                    : recentJobs.map((job) => (
+                        <JobCard
+                          key={job.id}
+                          id={job.id}
+                          title={job.title}
+                          companyName={job.company_name}
+                          status={job.is_active ? "active" : "inactive"}
+                          candidateCount={job.candidate_count}
+                          avgScore={job.avg_score === null ? null : Math.round(job.avg_score)}
+                          passRate={job.pass_rate}
+                          linkUsageCurrent={job.link_use_count}
+                          linkUsageMax={job.link_max_uses}
+                          createdAt={job.created_at}
+                        />
+                      ))}
+                </div>
+              </SectionErrorBoundary>
             </div>
           </section>
         </>

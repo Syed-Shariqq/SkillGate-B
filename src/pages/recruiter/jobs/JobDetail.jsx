@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { exportCandidatesCSV } from "@/services/recruiter/jobsService";
 import { useQueryClient } from "@tanstack/react-query";
 import { useJobDetailsQuery } from "@/hooks/queries/useJobDetailsQuery";
+import SectionErrorBoundary from "@/components/SectionErrorBoundary";
 import {
   useCandidatesQuery,
   useUpdateCandidateStatusMutation,
@@ -602,83 +603,85 @@ const JobDetail = () => {
                 </div>
               </div>
 
-              {/* Bulk Action Bar */}
-              {selectedIds.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto z-50 md:z-auto bg-tertiary border-t md:border border-border-default md:rounded-xl px-6 py-4 md:px-4 md:py-3 shadow-lg md:shadow-none flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-text-primary">
-                      {selectedIds.length} candidate{selectedIds.length > 1 ? "s" : ""} selected
-                    </span>
+              <SectionErrorBoundary sectionName="CandidatesTable" fallbackTitle="Candidates table couldn't load">
+                {/* Bulk Action Bar */}
+                {selectedIds.length > 0 && (
+                  <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto z-50 md:z-auto bg-tertiary border-t md:border border-border-default md:rounded-xl px-6 py-4 md:px-4 md:py-3 shadow-lg md:shadow-none flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-text-primary">
+                        {selectedIds.length} candidate{selectedIds.length > 1 ? "s" : ""} selected
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                      <button
+                        onClick={handleBulkShortlist}
+                        className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-lg bg-success hover:bg-success/85 text-text-primary transition-smooth cursor-pointer"
+                      >
+                        Shortlist All
+                      </button>
+                      <button
+                        onClick={handleBulkReject}
+                        className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-lg bg-error hover:bg-error/85 text-text-primary transition-smooth cursor-pointer"
+                      >
+                        Reject All
+                      </button>
+                      <button
+                        onClick={handleBulkExport}
+                        className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-lg bg-secondary border border-border-default hover:bg-tertiary text-text-primary transition-smooth cursor-pointer"
+                      >
+                        Export CSV
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                    <button
-                      onClick={handleBulkShortlist}
-                      className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-lg bg-success hover:bg-success/85 text-text-primary transition-smooth cursor-pointer"
-                    >
-                      Shortlist All
-                    </button>
-                    <button
-                      onClick={handleBulkReject}
-                      className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-lg bg-error hover:bg-error/85 text-text-primary transition-smooth cursor-pointer"
-                    >
-                      Reject All
-                    </button>
-                    <button
-                      onClick={handleBulkExport}
-                      className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-lg bg-secondary border border-border-default hover:bg-tertiary text-text-primary transition-smooth cursor-pointer"
-                    >
-                      Export CSV
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {/* Candidates Table / Empty Search State */}
-              {processedCandidates.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center bg-secondary border border-border-default rounded-xl">
-                  <p className="text-text-tertiary text-base font-medium">No candidates match your search or filter</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-border-default bg-secondary">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-secondary text-left text-xs font-semibold uppercase tracking-wider text-text-secondary border-b border-border-default">
-                      <tr>
-                        <th className="px-4 py-3 w-10">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 cursor-pointer rounded border-border-default bg-primary text-accent focus:ring-accent"
-                            checked={isAllVisibleSelected}
-                            onChange={handleHeaderCheckboxChange}
-                            aria-label="Select all visible candidates"
+                {/* Candidates Table / Empty Search State */}
+                {processedCandidates.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center bg-secondary border border-border-default rounded-xl">
+                    <p className="text-text-tertiary text-base font-medium">No candidates match your search or filter</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-border-default bg-secondary">
+                    <table className="w-full border-collapse">
+                      <thead className="bg-secondary text-left text-xs font-semibold uppercase tracking-wider text-text-secondary border-b border-border-default">
+                        <tr>
+                          <th className="px-4 py-3 w-10">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 cursor-pointer rounded border-border-default bg-primary text-accent focus:ring-accent"
+                              checked={isAllVisibleSelected}
+                              onChange={handleHeaderCheckboxChange}
+                              aria-label="Select all visible candidates"
+                            />
+                          </th>
+                          <th className="px-4 py-3 w-16">#</th>
+                          <th className="px-4 py-3">Candidate</th>
+                          <th className="px-4 py-3">Score</th>
+                          <th className="px-4 py-3">Result</th>
+                          <th className="px-4 py-3">Confidence</th>
+                          <th className="px-4 py-3 w-16">Flag</th>
+                          <th className="px-4 py-3">Time</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {processedCandidates.map((candidate) => (
+                          <CandidateRow
+                            key={candidate.id}
+                            candidate={candidate}
+                            selected={selectedIds.includes(candidate.id)}
+                            onSelect={handleSelect}
+                            onShortlist={handleShortlist}
+                            onReject={handleReject}
+                            onRetryEvaluation={handleRetryEvaluation}
+                            skeleton={false}
                           />
-                        </th>
-                        <th className="px-4 py-3 w-16">#</th>
-                        <th className="px-4 py-3">Candidate</th>
-                        <th className="px-4 py-3">Score</th>
-                        <th className="px-4 py-3">Result</th>
-                        <th className="px-4 py-3">Confidence</th>
-                        <th className="px-4 py-3 w-16">Flag</th>
-                        <th className="px-4 py-3">Time</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-default">
-                      {processedCandidates.map((candidate) => (
-                        <CandidateRow
-                          key={candidate.id}
-                          candidate={candidate}
-                          selected={selectedIds.includes(candidate.id)}
-                          onSelect={handleSelect}
-                          onShortlist={handleShortlist}
-                          onReject={handleReject}
-                          onRetryEvaluation={handleRetryEvaluation}
-                          skeleton={false}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </SectionErrorBoundary>
             </div>
           )}
         </>
