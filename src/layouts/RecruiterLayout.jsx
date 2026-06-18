@@ -516,7 +516,7 @@ const RecruiterLayout = ({ children }) => {
 
               {/* Notification dropdown */}
               {notificationOpen && (
-                <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border border-border-default bg-secondary shadow-2xl">
+                <div className="absolute -right-3 top-12 z-50 w-80 rounded-xl border border-border-default bg-secondary shadow-2xl">
                   {/* Header */}
                   <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
                     <span className="text-sm font-semibold text-text-primary">Notifications</span>
