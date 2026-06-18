@@ -1,10 +1,9 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import AuthContext from "@/context/AuthContext";
-import {
-  getOnboardingStatus,
-  markOnboardingComplete,
-} from "@/services/recruiter/dashboardService";
+import { useOnboardingStatusQuery } from "@/hooks/queries/useOnboardingStatusQuery";
+import { markOnboardingComplete } from "@/services/recruiter/dashboardService";
 import SkeletonCard from "../ui/SkeletonCard";
 
 const STEP_COUNT = 3;
@@ -72,80 +71,33 @@ const OnboardingChecklist = () => {
   const { profile, user } = useContext(AuthContext);
   const navigate = useNavigate();
   const recruiterId = profile?.id || user?.id;
-  const [loading, setLoading] = useState(true);
-  const [hidden, setHidden] = useState(false);
-  const [companyDetailsComplete, setCompanyDetailsComplete] = useState(false);
-  const [firstJobComplete, setFirstJobComplete] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, error } = useOnboardingStatusQuery(recruiterId);
+
+  const onboardingComplete = data?.onboardingComplete || false;
+  const companyDetailsComplete = data?.companyDetailsComplete || false;
+  const firstJobComplete = data?.firstJobComplete || false;
 
   useEffect(() => {
-    if (!recruiterId) {
-      return undefined;
-    }
-
-    let isMounted = true;
-
-    const loadCompletionState = async () => {
-      setLoading(true);
-
-      const onboardingStatusResult = await getOnboardingStatus(recruiterId);
-
-      if (!isMounted) return;
-
-      if (onboardingStatusResult.error) {
-        console.error("Onboarding status fetch error:", onboardingStatusResult.error);
-        setLoading(false);
-        return;
-      }
-
-      const { onboardingResult, profileResult, jobsResult } = onboardingStatusResult.data || {};
-
-      if (onboardingResult.error) {
-        console.error("Onboarding status fetch error:", onboardingResult.error);
-      }
-
-      if (onboardingResult.data?.onboarding_complete) {
-        setHidden(true);
-        setLoading(false);
-        return;
-      }
-
-      if (profileResult.error) {
-        console.error("Company details fetch error:", profileResult.error);
-      }
-
-      if (jobsResult.error) {
-        console.error("First job fetch error:", jobsResult.error);
-      }
-
-      const hasCompanyDetails =
-        Boolean(profileResult.data?.company_name) &&
-        Boolean(profileResult.data?.company_website);
-      const hasFirstJob = (jobsResult.count || 0) > 0;
-
-      setCompanyDetailsComplete(hasCompanyDetails);
-      setFirstJobComplete(hasFirstJob);
-
-      if (hasCompanyDetails && hasFirstJob) {
-        const { error } = await markOnboardingComplete(recruiterId);
-
-        if (error) {
-          console.error("Onboarding completion update error:", error);
-        } else if (isMounted) {
-          setHidden(true);
+    if (data && !data.onboardingComplete && data.companyDetailsComplete && data.firstJobComplete && recruiterId) {
+      const markComplete = async () => {
+        const { error: markError } = await markOnboardingComplete(recruiterId);
+        if (markError) {
+          console.error("Onboarding completion update error:", markError);
+        } else {
+          queryClient.setQueryData(["onboarding", recruiterId], (old) => {
+            if (!old) return old;
+            return {
+              ...old,
+              onboardingComplete: true,
+            };
+          });
         }
-      }
-
-      if (isMounted) {
-        setLoading(false);
-      }
-    };
-
-    loadCompletionState();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [recruiterId]);
+      };
+      markComplete();
+    }
+  }, [data, recruiterId, queryClient]);
 
   const steps = useMemo(
     () => [
@@ -173,7 +125,7 @@ const OnboardingChecklist = () => {
   const completedCount = steps.filter((step) => step.complete).length;
   const progressPercent = (completedCount / STEP_COUNT) * 100;
 
-  if (hidden) {
+  if (onboardingComplete) {
     return null;
   }
 
@@ -181,7 +133,7 @@ const OnboardingChecklist = () => {
     return null;
   }
 
-  if (loading) {
+  if (isLoading) {
     return <SkeletonCard rows={4} className="min-h-48 rounded-lg" />;
   }
 

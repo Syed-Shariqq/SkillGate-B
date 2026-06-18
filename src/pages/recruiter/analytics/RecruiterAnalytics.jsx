@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import AuthContext from '@/context/AuthContext';
-import { getAnalyticsData, getJobsList } from '@/services/recruiter/analyticsService';
+import { useAnalyticsJobsQuery } from '@/hooks/queries/useAnalyticsJobsQuery';
+import { useAnalyticsQuery } from '@/hooks/queries/useAnalyticsQuery';
 import {
   BarChart,
   Bar,
@@ -17,62 +18,15 @@ const RecruiterAnalytics = () => {
   const { user } = useContext(AuthContext);
   const [selectedJob, setSelectedJob] = useState('all');
   const [dateRange, setDateRange] = useState('30d');
-  const [analytics, setAnalytics] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!user?.id) return;
+  const { data: jobs = [] } = useAnalyticsJobsQuery(user?.id);
+  const { data: analytics = null, isLoading: loading, error: queryError } = useAnalyticsQuery(
+    user?.id,
+    selectedJob,
+    dateRange
+  );
 
-    let isMounted = true;
-
-    const fetchJobs = async () => {
-      const { data, error: jobsError } = await getJobsList(user.id);
-      if (isMounted) {
-        if (!jobsError) {
-          setJobs(data || []);
-        }
-      }
-    };
-
-    fetchJobs();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    let isMounted = true;
-
-    const fetchAnalytics = async () => {
-      setLoading(true);
-      const { data, error: analyticsError } = await getAnalyticsData(
-        user.id,
-        selectedJob,
-        dateRange
-      );
-      if (isMounted) {
-        if (analyticsError) {
-          setError('Failed to fetch analytics data.');
-          setAnalytics(null);
-        } else {
-          setAnalytics(data);
-          setError(null);
-        }
-        setLoading(false);
-      }
-    };
-
-    fetchAnalytics();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.id, selectedJob, dateRange]);
+  const error = queryError ? 'Failed to fetch analytics data.' : null;
 
   const completionRate = analytics?.completionRate ?? 0;
   const passRate = analytics?.passRate ?? 0;

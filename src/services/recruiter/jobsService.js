@@ -122,20 +122,20 @@ export const getJobCandidates = async (jobId, uid) => {
       .eq("job_id", jobId)
       .eq("recruiter_id", uid)
       .in("assessments.status", ["completed", "pending_review", "failed", "evaluating"]);
-
+      
     if (error) {
       return { data: null, error };
     }
 
     const sortedData = (data || []).sort((a, b) => {
-      const scoreA = a.assessments?.[0]?.results?.[0]?.overall_score ?? 0;
-      const scoreB = b.assessments?.[0]?.results?.[0]?.overall_score ?? 0;
+      const scoreA = a.assessments?.[0]?.results?.overall_score ?? 0;
+      const scoreB = b.assessments?.[0]?.results?.overall_score ?? 0;
       return scoreB - scoreA;
     });
 
     const mapped = sortedData.map((candidate, index) => {
       const assessment = candidate.assessments?.[0] || {};
-      const result = assessment.results?.[0] || {};
+      const result = assessment.results ?? {};
       return {
         id: candidate.id,
         rank: index + 1,
