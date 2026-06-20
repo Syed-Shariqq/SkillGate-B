@@ -14,6 +14,8 @@ const DemoResult = React.lazy(() => import("@/pages/demo/DemoResult"));
 
 const RecruiterAuthPage = React.lazy(() => import("@/pages/auth/RecruiterAuthPage"));
 const RecruiterOnboarding = React.lazy(() => import("@/pages/auth/RecruiterOnboarding"));
+const PendingApprovalPage = React.lazy(() => import("@/pages/PendingApprovalPage"));
+
 
 const AssessmentLanding = React.lazy(() => import("@/pages/assessment/AssessmentLanding"));
 const AssessmentPage = React.lazy(() => import("@/pages/assessment/AssessmentPage"));
@@ -66,6 +68,8 @@ const AppRoutes = () => (
       </Route>
 
       <Route path="/onboarding" element={<RecruiterOnboarding />} />
+      <Route path="/pending-approval" element={<PendingApprovalPage />} />
+
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<RecruiterLayout><RecruiterDashboard /></RecruiterLayout>} />

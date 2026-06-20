@@ -1,7 +1,7 @@
 import { supabase } from "@/config/supabase";
 
 const PROFILE_SELECT =
-  "id, full_name, company_name, company_website, work_email, is_onboarded, subscription_tier, assessments_used, assessments_limit, stripe_customer_id, billing_cycle_reset_at";
+  "id, full_name, company_name, company_website, work_email, is_onboarded, subscription_tier, assessments_used, assessments_limit, stripe_customer_id, billing_cycle_reset_at, account_status, is_admin";
 
 export const register = ({ name, email, password }) => {
   return supabase.auth.signUp({

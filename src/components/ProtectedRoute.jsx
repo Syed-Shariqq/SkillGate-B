@@ -9,7 +9,7 @@ const FullscreenLoader = () => (
 )
 
 export const ProtectedRoute = () => {
-  const { isAuthenticated, isOnboarded, loading } = useAuth()
+  const { isAuthenticated, isOnboarded, isPendingApproval, loading } = useAuth()
 
   if (loading) {
     return <FullscreenLoader />
@@ -21,6 +21,10 @@ export const ProtectedRoute = () => {
 
   if (!isOnboarded) {
     return <Navigate to="/onboarding" replace />
+  }
+
+  if (isPendingApproval) {
+    return <Navigate to="/pending-approval" replace />
   }
 
   return <Outlet />
