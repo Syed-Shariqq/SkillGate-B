@@ -18,6 +18,7 @@ const RecruiterOnboarding = React.lazy(() => import("@/pages/auth/RecruiterOnboa
 const PendingApprovalPage = React.lazy(() => import("@/pages/PendingApprovalPage"));
 const RejectedPage = React.lazy(() => import("@/pages/RejectedPage"));
 const VerifyEmailConfirmPage = React.lazy(() => import("@/pages/auth/VerifyEmailConfirmPage"));
+const VerifyEmailPage = React.lazy(() => import("@/pages/auth/VerifyEmailPage"));
 const AdminApprovalsPage = React.lazy(() => import("@/pages/recruiter/admin/AdminApprovalsPage"));
 
 
@@ -72,6 +73,7 @@ const AppRoutes = () => (
       </Route>
 
       <Route path="/onboarding" element={<RecruiterOnboarding />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/verify-email/confirm" element={<VerifyEmailConfirmPage />} />
       <Route path="/pending-approval" element={<PendingApprovalPage />} />
       <Route path="/rejected" element={<RejectedPage />} />
