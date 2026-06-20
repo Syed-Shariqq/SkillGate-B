@@ -9,17 +9,19 @@ const FullscreenLoader = () => (
 )
 
 export const PublicRoute = () => {
-  const { isAuthenticated, isOnboarded, loading } = useAuth()
+  const { isAuthenticated, isEmailVerified, isOnboarded, loading } = useAuth()
 
   if (loading) {
     return <FullscreenLoader />
   }
 
-  if (isAuthenticated && isOnboarded) {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  if (isAuthenticated && !isOnboarded) {
+  if (isAuthenticated) {
+    if (!isEmailVerified) {
+      return <Navigate to="/verify-email" replace />
+    }
+    if (isOnboarded) {
+      return <Navigate to="/dashboard" replace />
+    }
     return <Navigate to="/onboarding" replace />
   }
 
