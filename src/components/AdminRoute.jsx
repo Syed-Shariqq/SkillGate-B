@@ -1,3 +1,4 @@
+import React from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import LoadingSpinner from './ui/LoadingSpinner'
@@ -8,8 +9,8 @@ const FullscreenLoader = () => (
   </div>
 )
 
-export const ProtectedRoute = () => {
-  const { isAuthenticated, isOnboarded, isPendingApproval, isRejected, loading } = useAuth()
+export const AdminRoute = () => {
+  const { isAuthenticated, isAdmin, loading } = useAuth()
 
   if (loading) {
     return <FullscreenLoader />
@@ -19,16 +20,8 @@ export const ProtectedRoute = () => {
     return <Navigate to="/auth" replace />
   }
 
-  if (!isOnboarded) {
-    return <Navigate to="/onboarding" replace />
-  }
-
-  if (isPendingApproval) {
-    return <Navigate to="/pending-approval" replace />
-  }
-
-  if (isRejected) {
-    return <Navigate to="/rejected" replace />
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return <Outlet />

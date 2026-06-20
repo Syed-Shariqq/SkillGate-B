@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicRoute } from "@/components/PublicRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import RecruiterLayout from "@/layouts/RecruiterLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
@@ -15,6 +16,8 @@ const DemoResult = React.lazy(() => import("@/pages/demo/DemoResult"));
 const RecruiterAuthPage = React.lazy(() => import("@/pages/auth/RecruiterAuthPage"));
 const RecruiterOnboarding = React.lazy(() => import("@/pages/auth/RecruiterOnboarding"));
 const PendingApprovalPage = React.lazy(() => import("@/pages/PendingApprovalPage"));
+const RejectedPage = React.lazy(() => import("@/pages/RejectedPage"));
+const AdminApprovalsPage = React.lazy(() => import("@/pages/recruiter/admin/AdminApprovalsPage"));
 
 
 const AssessmentLanding = React.lazy(() => import("@/pages/assessment/AssessmentLanding"));
@@ -69,6 +72,7 @@ const AppRoutes = () => (
 
       <Route path="/onboarding" element={<RecruiterOnboarding />} />
       <Route path="/pending-approval" element={<PendingApprovalPage />} />
+      <Route path="/rejected" element={<RejectedPage />} />
 
 
       <Route element={<ProtectedRoute />}>
@@ -84,6 +88,10 @@ const AppRoutes = () => (
         <Route path="/billing/plans" element={<RecruiterLayout><PlansPage /></RecruiterLayout>} />
         <Route path="/settings" element={<RecruiterLayout><RecruiterSettings /></RecruiterLayout>} />
         <Route path="/notifications" element={<RecruiterLayout><NotificationsPage /></RecruiterLayout>} />
+      </Route>
+
+      <Route element={<AdminRoute />}>
+        <Route path="/admin/approvals" element={<AdminApprovalsPage />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

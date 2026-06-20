@@ -12,6 +12,7 @@ import {
   useMarkAllNotificationsReadMutation,
   useMarkOneNotificationReadMutation,
 } from "@/hooks/queries/useNotificationsQuery";
+import { usePendingAccountsQuery } from "@/hooks/queries/useAdminQuery";
 
 const navItems = [
   {
@@ -88,6 +89,7 @@ const getInitials = (name = "") => {
 };
 
 const getPageTitle = (pathname) => {
+  if (pathname === "/admin/approvals") return "Admin Approvals";
   const currentItem = navItems
     .slice()
     .sort((a, b) => b.path.length - a.path.length)
@@ -123,6 +125,8 @@ const Sidebar = ({
   navigate,
   onNavigate,
   unreadCount,
+  isAdmin,
+  pendingCount,
 }) => (
   <aside className="flex h-full w-60 flex-col border-r border-border-default bg-secondary">
     <div className="px-5 pb-4 pt-5">
@@ -181,6 +185,40 @@ const Sidebar = ({
         );
       })}
     </nav>
+
+    {/* Admin Nav Section */}
+    {isAdmin && (
+      <div className="border-t border-border-default px-3 py-4 space-y-1">
+        <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+          Admin
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            navigate("/admin/approvals");
+            onNavigate?.();
+          }}
+          className={`flex w-full items-center gap-3 rounded-r px-3 py-2.5 text-left text-sm font-medium transition-colors cursor-pointer ${
+            location.pathname === "/admin/approvals"
+              ? "border-l-[3px] border-accent bg-accent-soft pl-2.25 text-text-primary"
+              : "border-l-[3px] border-transparent text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          <NavIcon>
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+              fill="currentColor"
+            />
+          </NavIcon>
+          <span className="min-w-0 flex-1 truncate">Admin Approvals</span>
+          {pendingCount > 0 && (
+            <span className="min-w-5 rounded-full bg-error px-1.5 py-0.5 text-center text-xs font-semibold leading-none text-white">
+              {pendingCount}
+            </span>
+          )}
+        </button>
+      </div>
+    )}
 
     <div className="border-t border-border-default p-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -274,11 +312,17 @@ const getNotifIcon = (type) => {
 const RecruiterLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, loading: authLoading } = useContext(AuthContext);
+  const { user, profile, loading: authLoading, logout } = useContext(AuthContext);
+  const isAdmin = !!profile?.is_admin;
 
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const { data: pendingAccounts = [] } = usePendingAccountsQuery({
+    enabled: !!user?.id && isAdmin,
+  });
   const [quotaUsage, setQuotaUsage] = useState(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [dismissedQuotaKeys, setDismissedQuotaKeys] = useState(() => new Set());
@@ -428,12 +472,34 @@ const RecruiterLayout = ({ children }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [notificationOpen]);
 
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('[data-user-menu]')) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userMenuOpen]);
+
+  const handleLogout = async () => {
+    setUserMenuOpen(false);
+    try {
+      await logout();
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
   const sidebarProps = {
     companyName,
     fullName,
     location,
     navigate,
     unreadCount: effectiveUnreadCount,
+    isAdmin,
+    pendingCount: pendingAccounts.length,
   };
   if (authLoading) {
     return (
@@ -598,7 +664,36 @@ const RecruiterLayout = ({ children }) => {
               )}
             </div>
 
-            <RecruiterAvatar name={fullName} />
+            <div className="relative" data-user-menu>
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center justify-center rounded-full hover:ring-2 hover:ring-accent transition-smooth outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer"
+                aria-label="User menu"
+                aria-expanded={userMenuOpen}
+              >
+                <RecruiterAvatar name={fullName} />
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-12 z-50 w-48 rounded-xl border border-border-default bg-secondary py-1.5 shadow-2xl animate-fade-in-up">
+                  <div className="px-4 py-2 border-b border-border-default mb-1 text-left">
+                    <p className="text-sm font-medium text-text-primary truncate">{fullName}</p>
+                    <p className="text-xs text-text-secondary truncate">{user?.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2.5 text-sm text-error hover:bg-hover-overlay transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Log Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
