@@ -5,6 +5,7 @@ import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import skillGateLogo from "@/assets/skillGate-logo.png";
 import { useAuth } from "@/hooks/useAuth";
+import { requestPasswordReset } from "@/services/auth/authService";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -14,6 +15,7 @@ const initialForm = {
   signupPassword: "",
   loginEmail: "",
   loginPassword: "",
+  resetEmail: "",
 };
 
 const trustPoints = [
@@ -57,15 +59,20 @@ const RecruiterAuthPage = () => {
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const isSignup = activeTab === "signup";
 
   const activeFields = useMemo(() => {
-    return isSignup
-      ? ["fullName", "workEmail", "signupPassword"]
-      : ["loginEmail", "loginPassword"];
-  }, [isSignup]);
+    if (activeTab === "signup") {
+      return ["fullName", "workEmail", "signupPassword"];
+    }
+    if (activeTab === "login") {
+      return ["loginEmail", "loginPassword"];
+    }
+    return ["resetEmail"];
+  }, [activeTab]);
 
   const validateField = (name, value = form[name]) => {
     const validators = {
@@ -74,6 +81,7 @@ const RecruiterAuthPage = () => {
       signupPassword: () => validatePassword(value),
       loginEmail: () => validateEmail(value),
       loginPassword: () => validatePassword(value),
+      resetEmail: () => validateEmail(value, "Email address"),
     };
 
     return validators[name]?.() || "";
@@ -97,6 +105,7 @@ const RecruiterAuthPage = () => {
     setActiveTab(tab);
     setFieldErrors({});
     setFormError("");
+    setSuccessMessage("");
   };
 
   const handleChange = (event) => {
@@ -132,6 +141,7 @@ const RecruiterAuthPage = () => {
     if (loading) return;
 
     setFormError("");
+    setSuccessMessage("");
 
     const errors = validateActiveForm();
     setFieldErrors(errors);
@@ -141,31 +151,61 @@ const RecruiterAuthPage = () => {
     setLoading(true);
 
     try {
-      const response = isSignup
-        ? await register({
-            name: form.fullName.trim(),
-            email: form.workEmail.trim(),
-            password: form.signupPassword,
-          })
-        : await login({
-            email: form.loginEmail.trim(),
-            password: form.loginPassword,
-          });
+      if (activeTab === "forgot") {
+        const { error } = await requestPasswordReset(form.resetEmail.trim());
 
-      if (response?.error) {
-        setFormError(response.error.message || "Something went wrong");
-        return;
-      }
+        if (error) {
+          console.error("requestPasswordReset failed:", error);
+        }
 
-      if (isSignup) {
-        toast.success("Check your email to confirm");
+        // CRITICAL: regardless of whether requestPasswordReset returns an error or succeeds, show the exact same message to the user:
+        setSuccessMessage(
+          "If an account exists for that email, we've sent a password reset link. Please check your inbox.",
+        );
+
+        // After showing the success message, the email input can be cleared and the button can be disabled to prevent resubmission
         setForm((currentForm) => ({
           ...currentForm,
-          signupPassword: "",
+          resetEmail: "",
         }));
+      } else {
+        const response = isSignup
+          ? await register({
+              name: form.fullName.trim(),
+              email: form.workEmail.trim(),
+              password: form.signupPassword,
+            })
+          : await login({
+              email: form.loginEmail.trim(),
+              password: form.loginPassword,
+            });
+
+        if (response?.error) {
+          setFormError(response.error.message || "Something went wrong");
+          return;
+        }
+
+        if (isSignup) {
+          toast.success("Check your email to confirm");
+          setForm((currentForm) => ({
+            ...currentForm,
+            signupPassword: "",
+          }));
+        }
       }
     } catch (error) {
-      setFormError(error?.message || "Something went wrong");
+      if (activeTab === "forgot") {
+        console.error("requestPasswordReset threw error:", error);
+        setSuccessMessage(
+          "If an account exists for that email, we've sent a password reset link. Please check your inbox.",
+        );
+        setForm((currentForm) => ({
+          ...currentForm,
+          resetEmail: "",
+        }));
+      } else {
+        setFormError(error?.message || "Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
@@ -240,46 +280,68 @@ const RecruiterAuthPage = () => {
                 Recruiter access
               </p>
               <h2 className="mt-3 text-3xl font-semibold leading-tight tracking-normal">
-                {isSignup ? "Create your account" : "Welcome back"}
+                {activeTab === "forgot"
+                  ? "Reset your password"
+                  : isSignup
+                  ? "Create your account"
+                  : "Welcome back"}
               </h2>
               <p className="mt-3 text-sm leading-6 text-text-secondary">
-                {isSignup
+                {activeTab === "forgot"
+                  ? "Enter your email and we'll send you a reset link."
+                  : isSignup
                   ? "Start screening candidates with structured, signal-first assessments."
                   : "Log in to continue managing roles, candidates, and results."}
               </p>
             </div>
 
-            <div className="mb-8 grid grid-cols-2 rounded-lg border border-border-default/90 bg-primary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleTabChange("signup")}
-                aria-pressed={isSignup}
-                className={`rounded-md px-4 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.99] ${
-                  isSignup
-                    ? "bg-tertiary text-text-primary shadow-[0_8px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                    : "text-text-secondary hover:bg-hover-overlay hover:text-text-primary"
-                }`}
-              >
-                Sign Up
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleTabChange("login")}
-                aria-pressed={!isSignup}
-                className={`rounded-md px-4 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.99] ${
-                  !isSignup
-                    ? "bg-tertiary text-text-primary shadow-[0_8px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                    : "text-text-secondary hover:bg-hover-overlay hover:text-text-primary"
-                }`}
-              >
-                Log In
-              </button>
-            </div>
+            {activeTab !== "forgot" && (
+              <div className="mb-8 grid grid-cols-2 rounded-lg border border-border-default/90 bg-primary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleTabChange("signup")}
+                  aria-pressed={isSignup}
+                  className={`rounded-md px-4 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.99] ${
+                    isSignup
+                      ? "bg-tertiary text-text-primary shadow-[0_8px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                      : "text-text-secondary hover:bg-hover-overlay hover:text-text-primary"
+                  }`}
+                >
+                  Sign Up
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleTabChange("login")}
+                  aria-pressed={!isSignup}
+                  className={`rounded-md px-4 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.99] ${
+                    !isSignup
+                      ? "bg-tertiary text-text-primary shadow-[0_8px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                      : "text-text-secondary hover:bg-hover-overlay hover:text-text-primary"
+                  }`}
+                >
+                  Log In
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
-              {isSignup ? (
+              {activeTab === "forgot" ? (
+                <Input
+                  label="Email Address"
+                  name="resetEmail"
+                  type="email"
+                  placeholder="you@company.com"
+                  value={form.resetEmail}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={fieldErrors.resetEmail}
+                  disabled={loading}
+                  autoComplete="email"
+                  className={inputClassName}
+                />
+              ) : isSignup ? (
                 <>
                   <Input
                     label="Full Name"
@@ -349,13 +411,13 @@ const RecruiterAuthPage = () => {
                   />
 
                   <div className="flex justify-end">
-                    {/* TODO: Wire forgot password flow. */}
-                    <a
-                      href="#forgot-password"
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("forgot")}
                       className="text-sm font-medium text-text-secondary transition-colors duration-200 hover:text-accent"
                     >
                       Forgot password?
-                    </a>
+                    </button>
                   </div>
                 </>
               )}
@@ -364,16 +426,34 @@ const RecruiterAuthPage = () => {
                 type="submit"
                 variant="primary"
                 loading={loading}
-                disabled={loading}
+                disabled={loading || (activeTab === "forgot" && !!successMessage)}
                 className={primaryButtonClassName}
               >
-                {isSignup ? "Sign Up" : "Log In"}
+                {activeTab === "forgot" ? "Send Reset Link" : isSignup ? "Sign Up" : "Log In"}
               </Button>
+
+              {activeTab === "forgot" && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange("login")}
+                    className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors underline focus:outline-none"
+                  >
+                    Back to login
+                  </button>
+                </div>
+              )}
             </form>
 
             {formError && (
               <p className="mt-5 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 {formError}
+              </p>
+            )}
+
+            {successMessage && (
+              <p className="mt-5 rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm text-success shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                {successMessage}
               </p>
             )}
           </Card>
@@ -384,3 +464,4 @@ const RecruiterAuthPage = () => {
 };
 
 export default RecruiterAuthPage;
+

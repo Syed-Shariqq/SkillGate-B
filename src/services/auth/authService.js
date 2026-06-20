@@ -75,3 +75,13 @@ export const updateCompanyDetails = (
     .select(PROFILE_SELECT)
     .single();
 };
+
+export const requestPasswordReset = (email) => {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: "https://skill-gate-b.vercel.app/reset-password",
+  });
+};
+
+export const updatePassword = (newPassword) => {
+  return supabase.auth.updateUser({ password: newPassword });
+};
