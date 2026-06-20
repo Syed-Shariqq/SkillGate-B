@@ -3,8 +3,8 @@ import { supabase } from "@/config/supabase";
 const PROFILE_SELECT =
   "id, full_name, company_name, company_website, work_email, is_onboarded, subscription_tier, assessments_used, assessments_limit, stripe_customer_id, billing_cycle_reset_at, account_status, is_admin";
 
-export const register = ({ name, email, password }) => {
-  return supabase.auth.signUp({
+export const register = async ({ name, email, password }) => {
+  const result = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -13,6 +13,25 @@ export const register = ({ name, email, password }) => {
       },
     },
   });
+
+  if (result.error || !result.data?.user?.id) {
+    return result;
+  }
+
+  supabase.functions
+    .invoke("send-verification-email", {
+      body: { userId: result.data.user.id },
+    })
+    .then(({ error }) => {
+      if (error) {
+        console.error("send-verification-email failed:", error);
+      }
+    })
+    .catch((error) => {
+      console.error("send-verification-email invoke threw error:", error);
+    });
+
+  return result;
 };
 
 export const login = ({ email, password }) => {
