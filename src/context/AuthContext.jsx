@@ -136,6 +136,7 @@ export const AuthProvider = ({ children }) => {
       profile,
       loading,
       isAuthenticated: !!user,
+      isEmailVerified: profile?.email_verified === true,
       isOnboarded: !!profile?.is_onboarded,
       isPendingApproval: profile?.account_status === "pending_approval",
       isRejected: profile?.account_status === "rejected",
