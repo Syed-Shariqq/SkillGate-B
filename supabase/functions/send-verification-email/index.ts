@@ -13,6 +13,7 @@ type ProfileRow = {
   email: string | null;
   full_name: string | null;
   email_verified: boolean | null;
+  email_verification_sent_at: string | null;
 };
 
 type EmailPayload = {
@@ -384,7 +385,7 @@ serve(async (req: Request) => {
     logStep("fetch-profile", "fetching profile for userId", { userId });
     const { data: profile, error: fetchError } = await supabase
       .from("profiles")
-      .select("id, email, full_name, email_verified")
+      .select("id, email, full_name, email_verified, email_verification_sent_at")
       .eq("id", userId)
       .maybeSingle<ProfileRow>();
 
@@ -405,6 +406,25 @@ serve(async (req: Request) => {
     if (profile.email_verified === true) {
       logStep("idempotency", "profile email is already verified");
       return jsonResponse({ status: "already_verified" }, 200);
+    }
+
+    // 4b. Check cooldown (60 seconds)
+    if (profile.email_verification_sent_at) {
+      const sentAt = new Date(profile.email_verification_sent_at);
+      const now = new Date();
+      const diffMs = now.getTime() - sentAt.getTime();
+      const diffSecs = Math.floor(diffMs / 1000);
+
+      if (diffSecs < 60) {
+        logStep("cooldown-active", "cooldown is active", { remaining: 60 - diffSecs });
+        return jsonResponse(
+          {
+            error: "cooldown_active",
+            remainingSeconds: 60 - diffSecs,
+          },
+          429,
+        );
+      }
     }
 
     const userEmail = safeText(profile.email);

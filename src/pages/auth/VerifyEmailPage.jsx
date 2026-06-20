@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/config/supabase";
@@ -13,6 +13,17 @@ const VerifyEmailPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setCooldown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
@@ -54,14 +65,20 @@ const VerifyEmailPage = () => {
       });
 
       let technicalMessage = "";
+      let isCooldown = false;
+      let cooldownSeconds = 60;
 
       if (error) {
         console.error("send-verification-email invoke returned error:", error);
         if (error.name === "FunctionsHttpError" && error.context) {
           try {
-            // Extract the actual JSON response body returned by the Edge Function
             const body = await error.context.json();
-            technicalMessage = body?.error || body?.message || error.message;
+            if (body && body.error === "cooldown_active") {
+              isCooldown = true;
+              cooldownSeconds = Number(body.remainingSeconds) || 60;
+            } else {
+              technicalMessage = body?.error || body?.message || error.message;
+            }
           } catch (_e) {
             technicalMessage = error.message;
           }
@@ -69,7 +86,17 @@ const VerifyEmailPage = () => {
           technicalMessage = error.message || String(error);
         }
       } else if (data && data.error) {
-        technicalMessage = data.error;
+        if (data.error === "cooldown_active") {
+          isCooldown = true;
+          cooldownSeconds = Number(data.remainingSeconds) || 60;
+        } else {
+          technicalMessage = data.error;
+        }
+      }
+
+      if (isCooldown) {
+        setCooldown(cooldownSeconds);
+        return;
       }
 
       if (technicalMessage) {
@@ -92,6 +119,7 @@ const VerifyEmailPage = () => {
       }
 
       setMessage("A fresh verification link has been sent to your email address.");
+      setCooldown(60);
     } catch (err) {
       console.error("send-verification-email invoke throw:", err);
       setErrorMsg("We encountered a network issue. Please check your connection and try again.");
@@ -164,11 +192,17 @@ const VerifyEmailPage = () => {
               variant="secondary"
               onClick={handleResend}
               loading={resending}
-              disabled={refreshing || resending}
+              disabled={refreshing || resending || cooldown > 0}
               className="w-full h-11"
             >
               Resend Verification Email
             </Button>
+
+            {cooldown > 0 && (
+              <p className="text-xs text-text-secondary mt-1">
+                You can request another email in {cooldown} seconds.
+              </p>
+            )}
           </div>
 
           {message && (
