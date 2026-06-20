@@ -352,6 +352,34 @@ serve(async (req: Request) => {
     // 2. Create Supabase client
     const supabase = createSupabaseClient();
 
+    // 2b. Authorization check (JWT ownership or Service Role Key)
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "Missing Authorization header" }, 401);
+    }
+
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isServiceRole = serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`;
+
+    let isAuthorized = false;
+    if (isServiceRole) {
+      isAuthorized = true;
+      logStep("auth", "authorized via service role key");
+    } else if (authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && user && user.id === userId) {
+        isAuthorized = true;
+        logStep("auth", "authorized via user JWT ownership", { userId });
+      } else {
+        logStep("auth-fail", "auth check failed", { authError, userId, callerUserId: user?.id });
+      }
+    }
+
+    if (!isAuthorized) {
+      return jsonResponse({ error: "Unauthorized" }, 403);
+    }
+
     // 3. Fetch profile
     logStep("fetch-profile", "fetching profile for userId", { userId });
     const { data: profile, error: fetchError } = await supabase
