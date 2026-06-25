@@ -11,7 +11,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCandidateDetailsQuery } from "@/hooks/queries/useCandidateDetailsQuery";
 import { useUpdateCandidateStatusMutation } from "@/hooks/queries/useCandidatesQuery";
 
-
 const CandidateProfile = () => {
   const { candidateId } = useParams();
   const navigate = useNavigate();
@@ -29,7 +28,8 @@ const CandidateProfile = () => {
   const [localError, setLocalError] = useState(null);
 
   const loading = isLoading;
-  const error = localError || (queryError ? "Failed to load candidate profile." : null);
+  const error =
+    localError || (queryError ? "Failed to load candidate profile." : null);
 
   useEffect(() => {
     if (profileData?.candidate?.status) {
@@ -37,7 +37,8 @@ const CandidateProfile = () => {
     }
   }, [profileData?.candidate?.status]);
 
-  const statusState = localStatusState || profileData?.candidate?.status || null;
+  const statusState =
+    localStatusState || profileData?.candidate?.status || null;
 
   const [noteText, setNoteText] = useState("");
   const [showNote, setShowNote] = useState(false);
@@ -61,10 +62,18 @@ const CandidateProfile = () => {
       }
 
       toast.success("Evaluation restarted successfully!");
-      queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["candidate", candidateId],
+      });
+
+      await queryClient.refetchQueries({
+        queryKey: ["candidate", candidateId],
+      });
     } catch (err) {
       console.error("Failed to retry evaluation:", err);
-      toast.error(err.message || "Failed to retry evaluation. Please try again.");
+      toast.error(
+        err.message || "Failed to retry evaluation. Please try again.",
+      );
     } finally {
       setRetryLoading(false);
     }
@@ -76,7 +85,7 @@ const CandidateProfile = () => {
     try {
       const { error } = await retryPdfGeneration(
         profileData.assessment.id,
-        profileData.result.id
+        profileData.result.id,
       );
 
       if (error) {
@@ -87,7 +96,9 @@ const CandidateProfile = () => {
       queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
     } catch (err) {
       console.error("Failed to retry PDF generation:", err);
-      toast.error(err.message || "Failed to retry PDF generation. Please try again.");
+      toast.error(
+        err.message || "Failed to retry PDF generation. Please try again.",
+      );
     } finally {
       setRetryPdfLoading(false);
     }
@@ -109,7 +120,7 @@ const CandidateProfile = () => {
           setLocalStatusState(profileData.candidate.status);
           setLocalError("Failed to update candidate status.");
         },
-      }
+      },
     );
   };
 
@@ -130,7 +141,7 @@ const CandidateProfile = () => {
           setLocalStatusState(profileData.candidate.status);
           setLocalError("Failed to update candidate status.");
         },
-      }
+      },
     );
   };
 
@@ -140,15 +151,22 @@ const CandidateProfile = () => {
       const { error: noteError } = await saveInternalNote(
         profileData.candidate.id,
         user.id,
-        noteText
+        noteText,
       );
       if (!noteError) {
         setNoteSaved(true);
         setTimeout(() => setNoteSaved(false), 2000);
-        queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
+        await queryClient.invalidateQueries({
+          queryKey: ["candidate", candidateId],
+        });
+
+        await queryClient.refetchQueries({
+          queryKey: ["candidate", candidateId],
+        });
       }
     } catch (err) {
       // Inline state error handling
+      console.log(err);
     }
   };
 
@@ -252,12 +270,26 @@ const CandidateProfile = () => {
     return (
       <div className="space-y-6 p-6 min-h-screen text-text-primary font-sans bg-primary flex flex-col items-center justify-center text-center">
         <div className="flex items-center justify-center p-3 rounded-full bg-error/15 text-error mb-4">
-          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <svg
+            className="w-8 h-8"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
         </div>
-        <h3 className="text-text-primary text-lg font-semibold">Failed to load candidate profile</h3>
-        <p className="text-text-secondary text-sm max-w-md mt-1 mb-6">{error}</p>
+        <h3 className="text-text-primary text-lg font-semibold">
+          Failed to load candidate profile
+        </h3>
+        <p className="text-text-secondary text-sm max-w-md mt-1 mb-6">
+          {error}
+        </p>
         <button
           onClick={loadProfile}
           className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-text-primary text-sm font-semibold rounded-lg transition-smooth cursor-pointer"
@@ -273,7 +305,8 @@ const CandidateProfile = () => {
   const { candidate, assessment, result, job } = profileData;
 
   const score = result.overall_score ?? 0;
-  const scoreColor = score >= 70 ? "text-success" : score >= 50 ? "text-warning" : "text-error";
+  const scoreColor =
+    score >= 70 ? "text-success" : score >= 50 ? "text-warning" : "text-error";
 
   const isClean =
     (assessment.tab_switches ?? 0) === 0 &&
@@ -299,7 +332,9 @@ const CandidateProfile = () => {
           <div className="bg-secondary border border-border-default rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-text-primary text-2xl font-bold">{candidate.full_name}</h1>
+                <h1 className="text-text-primary text-2xl font-bold">
+                  {candidate.full_name}
+                </h1>
                 <span className="bg-tertiary border border-border-default rounded px-2 py-0.5 font-mono text-xs text-text-secondary">
                   SG-{candidate.id.slice(-4).toUpperCase()}
                 </span>
@@ -310,13 +345,19 @@ const CandidateProfile = () => {
                 )}
               </div>
               <p className="text-text-secondary text-sm">{candidate.email}</p>
-              {job && <p className="text-text-tertiary text-xs">Role: {job.title}</p>}
+              {job && (
+                <p className="text-text-tertiary text-xs">Role: {job.title}</p>
+              )}
             </div>
 
             <div className="flex sm:flex-col items-start sm:items-end gap-3 sm:gap-1 shrink-0">
               {assessment.status === "completed" && (
                 <div className="flex items-baseline gap-1">
-                  <span className={`text-4xl font-bold font-mono ${scoreColor}`}>{score}%</span>
+                  <span
+                    className={`text-4xl font-bold font-mono ${scoreColor}`}
+                  >
+                    {score}%
+                  </span>
                 </div>
               )}
               <div className="flex flex-col sm:items-end gap-1">
@@ -340,7 +381,9 @@ const CandidateProfile = () => {
                 ) : (
                   <span
                     className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      result.passed ? "bg-success/15 text-success" : "bg-error/15 text-error"
+                      result.passed
+                        ? "bg-success/15 text-success"
+                        : "bg-error/15 text-error"
                     }`}
                   >
                     {result.passed ? "Passed" : "Failed"}
@@ -352,13 +395,28 @@ const CandidateProfile = () => {
 
           {assessment.status === "pending_review" && (
             <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-start gap-3">
-              <svg className="w-5 h-5 text-warning shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg
+                className="w-5 h-5 text-warning shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
               <div>
-                <h4 className="text-warning text-sm font-semibold mb-1">Evaluation Needs Review</h4>
+                <h4 className="text-warning text-sm font-semibold mb-1">
+                  Evaluation Needs Review
+                </h4>
                 <p className="text-text-secondary text-xs leading-relaxed">
-                  The AI grading engine encountered a temporary issue while evaluating this candidate's responses. No score has been generated. You can trigger a retry using the action on the right.
+                  The AI grading engine encountered a temporary issue while
+                  evaluating this candidate's responses. No score has been
+                  generated. You can trigger a retry using the action on the
+                  right.
                 </p>
               </div>
             </div>
@@ -366,14 +424,32 @@ const CandidateProfile = () => {
 
           {assessment.status === "evaluating" && (
             <div className="bg-accent-soft/10 border border-accent/20 rounded-xl p-4 flex items-start gap-3 animate-pulse">
-              <svg className="w-5 h-5 text-accent shrink-0 mt-0.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <svg
+                className="w-5 h-5 text-accent shrink-0 mt-0.5 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
               <div>
-                <h4 className="text-accent text-sm font-semibold mb-1">Evaluation in Progress</h4>
+                <h4 className="text-accent text-sm font-semibold mb-1">
+                  Evaluation in Progress
+                </h4>
                 <p className="text-text-secondary text-xs leading-relaxed">
-                  The AI grading engine is currently evaluating the candidate's answers. Results will be available shortly.
+                  The AI grading engine is currently evaluating the candidate's
+                  answers. Results will be available shortly.
                 </p>
               </div>
             </div>
@@ -383,11 +459,15 @@ const CandidateProfile = () => {
           {assessment.status === "completed" && (
             <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between gap-3 border-b border-border-default pb-3">
-                <h2 className="text-text-primary font-semibold text-lg">Executive Summary</h2>
+                <h2 className="text-text-primary font-semibold text-lg">
+                  Executive Summary
+                </h2>
                 {result.hiring_signal && (
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                      result.hiring_signal === "No Hire" ? "bg-error/15 text-error" : "bg-success/15 text-success"
+                      result.hiring_signal === "No Hire"
+                        ? "bg-error/15 text-error"
+                        : "bg-success/15 text-success"
                     }`}
                   >
                     {result.hiring_signal}
@@ -397,9 +477,13 @@ const CandidateProfile = () => {
 
               <div className="space-y-3">
                 {result.executive_summary ? (
-                  <p className="text-text-secondary text-sm leading-relaxed">{result.executive_summary}</p>
+                  <p className="text-text-secondary text-sm leading-relaxed">
+                    {result.executive_summary}
+                  </p>
                 ) : (
-                  <p className="text-text-tertiary text-sm">Summary not yet generated</p>
+                  <p className="text-text-tertiary text-sm">
+                    Summary not yet generated
+                  </p>
                 )}
                 {result.hiring_rationale && (
                   <p className="text-text-tertiary text-xs italic mt-2 border-l-2 border-border-default pl-3 leading-relaxed">
@@ -411,7 +495,9 @@ const CandidateProfile = () => {
               {/* Technical Confidence block inside Executive Summary */}
               <div className="pt-4 border-t border-border-default space-y-2">
                 <div className="flex justify-between items-center text-sm font-medium">
-                  <span className="text-text-primary">Technical Confidence</span>
+                  <span className="text-text-primary">
+                    Technical Confidence
+                  </span>
                   <span
                     className={`text-xs font-semibold ${
                       result.confidence_label === "High"
@@ -457,7 +543,9 @@ const CandidateProfile = () => {
                 <span className="text-text-secondary">Tab Switches</span>
                 <span
                   className={`font-mono font-medium ${
-                    assessment.tab_switches > 0 ? "text-error font-bold" : "text-text-primary"
+                    assessment.tab_switches > 0
+                      ? "text-error font-bold"
+                      : "text-text-primary"
                   }`}
                 >
                   {assessment.tab_switches ?? 0}
@@ -467,7 +555,9 @@ const CandidateProfile = () => {
                 <span className="text-text-secondary">Paste Detected</span>
                 <span
                   className={`font-mono font-medium ${
-                    assessment.paste_attempts > 0 ? "text-error font-bold" : "text-text-primary"
+                    assessment.paste_attempts > 0
+                      ? "text-error font-bold"
+                      : "text-text-primary"
                   }`}
                 >
                   {assessment.paste_attempts ?? 0}
@@ -477,9 +567,13 @@ const CandidateProfile = () => {
                 <span className="text-text-secondary">Flagged</span>
                 <span>
                   {assessment.is_flagged ? (
-                    <span className="bg-error/15 text-error px-2 py-0.5 rounded text-xs font-medium">Yes</span>
+                    <span className="bg-error/15 text-error px-2 py-0.5 rounded text-xs font-medium">
+                      Yes
+                    </span>
                   ) : (
-                    <span className="bg-success/15 text-success px-2 py-0.5 rounded text-xs font-medium">No</span>
+                    <span className="bg-success/15 text-success px-2 py-0.5 rounded text-xs font-medium">
+                      No
+                    </span>
                   )}
                 </span>
               </div>
@@ -505,8 +599,12 @@ const CandidateProfile = () => {
                     return (
                       <div key={index} className="space-y-1.5">
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-text-primary font-medium">{skillItem.skill}</span>
-                          <span className="text-text-secondary text-xs">{skillItem.level}</span>
+                          <span className="text-text-primary font-medium">
+                            {skillItem.skill}
+                          </span>
+                          <span className="text-text-secondary text-xs">
+                            {skillItem.level}
+                          </span>
                         </div>
                         <div className="h-2 w-full rounded-full bg-tertiary overflow-hidden">
                           <div
@@ -519,7 +617,9 @@ const CandidateProfile = () => {
                   })}
                 </div>
               ) : (
-                <p className="text-text-tertiary text-sm mt-3">Skill breakdown not available</p>
+                <p className="text-text-tertiary text-sm mt-3">
+                  Skill breakdown not available
+                </p>
               )}
             </div>
           )}
@@ -557,7 +657,9 @@ const CandidateProfile = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${difficultyColor}`}>
+                          <span
+                            className={`rounded px-2 py-0.5 text-xs font-medium ${difficultyColor}`}
+                          >
                             {q.difficulty || "Medium"}
                           </span>
                           <span className="font-mono text-sm text-text-secondary">
@@ -566,7 +668,9 @@ const CandidateProfile = () => {
                         </div>
                       </div>
 
-                      <p className="text-text-primary text-sm font-medium">{q.question_text}</p>
+                      <p className="text-text-primary text-sm font-medium">
+                        {q.question_text}
+                      </p>
 
                       {/* Candidate's Answer */}
                       <div className="space-y-1">
@@ -579,7 +683,8 @@ const CandidateProfile = () => {
                               resp.is_correct ? "text-success" : "text-error"
                             }`}
                           >
-                            {resp.answer_given || "No answer"} {resp.is_correct ? "✓" : "✗"}
+                            {resp.answer_given || "No answer"}{" "}
+                            {resp.is_correct ? "✓" : "✗"}
                           </p>
                         ) : (
                           <pre className="bg-primary border border-border-default rounded p-3 text-sm text-text-secondary font-mono whitespace-pre-wrap">
@@ -601,7 +706,9 @@ const CandidateProfile = () => {
                       )}
 
                       {/* AI Critique */}
-                      {(resp.ai_feedback || (resp.missed_concepts && resp.missed_concepts.length > 0)) && (
+                      {(resp.ai_feedback ||
+                        (resp.missed_concepts &&
+                          resp.missed_concepts.length > 0)) && (
                         <div className="space-y-1 border-t border-border-default/50 pt-2">
                           <span className="block text-text-tertiary text-[10px] font-bold uppercase tracking-wider">
                             AI Critique
@@ -611,11 +718,12 @@ const CandidateProfile = () => {
                               {resp.ai_feedback}
                             </p>
                           )}
-                          {resp.missed_concepts && resp.missed_concepts.length > 0 && (
-                            <p className="text-error text-xs font-semibold">
-                              Missed: {resp.missed_concepts.join(", ")}
-                            </p>
-                          )}
+                          {resp.missed_concepts &&
+                            resp.missed_concepts.length > 0 && (
+                              <p className="text-error text-xs font-semibold">
+                                Missed: {resp.missed_concepts.join(", ")}
+                              </p>
+                            )}
                         </div>
                       )}
                     </div>
@@ -623,7 +731,9 @@ const CandidateProfile = () => {
                 })}
               </div>
             ) : (
-              <p className="text-text-tertiary text-sm mt-3">No responses recorded for this candidate</p>
+              <p className="text-text-tertiary text-sm mt-3">
+                No responses recorded for this candidate
+              </p>
             )}
           </div>
         </div>
@@ -631,7 +741,9 @@ const CandidateProfile = () => {
         {/* Right Column (Candidate Actions sidebar) */}
         <div className="w-full md:w-80 shrink-0 md:sticky md:top-6">
           <div className="bg-secondary border border-border-default rounded-xl p-5 space-y-3">
-            <h3 className="text-text-primary font-semibold text-base mb-2">Actions</h3>
+            <h3 className="text-text-primary font-semibold text-base mb-2">
+              Actions
+            </h3>
 
             {/* Retry Evaluation Button for Pending Review */}
             {assessment?.status === "pending_review" && (
@@ -641,9 +753,24 @@ const CandidateProfile = () => {
                 className="w-full py-2.5 px-4 bg-warning hover:bg-warning/80 text-text-primary text-sm font-semibold rounded-lg transition-smooth cursor-pointer text-center flex items-center justify-center gap-2"
               >
                 {retryLoading && (
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <svg
+                    className="animate-spin h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                 )}
                 {retryLoading ? "Retrying..." : "Retry Evaluation"}
@@ -658,9 +785,24 @@ const CandidateProfile = () => {
                 className="w-full py-2.5 px-4 bg-accent hover:bg-accent-hover text-text-primary text-sm font-semibold rounded-lg transition-smooth cursor-pointer text-center flex items-center justify-center gap-2"
               >
                 {retryPdfLoading && (
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <svg
+                    className="animate-spin h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                 )}
                 {retryPdfLoading ? "Retrying..." : "Retry PDF"}
@@ -716,7 +858,11 @@ const CandidateProfile = () => {
                     >
                       Save Note
                     </button>
-                    {noteSaved && <span className="text-success text-xs font-medium">Note saved</span>}
+                    {noteSaved && (
+                      <span className="text-success text-xs font-medium">
+                        Note saved
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -732,7 +878,9 @@ const CandidateProfile = () => {
               </button>
             ) : showRejectConfirm ? (
               <div className="bg-tertiary border border-border-default rounded-lg p-3 mt-2 space-y-2">
-                <p className="text-xs text-text-secondary">Are you sure you want to reject this candidate?</p>
+                <p className="text-xs text-text-secondary">
+                  Are you sure you want to reject this candidate?
+                </p>
                 <div className="flex gap-2">
                   <button
                     onClick={handleReject}
