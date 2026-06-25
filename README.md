@@ -83,20 +83,22 @@ Recruiters can review candidate details, assessment outcomes, AI summaries, and 
 The diagram below illustrates the complete end-to-end architecture of SkillGate, including the frontend, Supabase backend, Edge Functions, AI providers, storage, email, payments, and deployment infrastructure.
 
 ```mermaid
-flowchart LR
-  Candidate[Candidate browser] --> React[React SPA]
-  Recruiter[Recruiter browser] --> React
-  React --> SupabaseAuth[Supabase Auth]
-  React --> SupabaseDB[(Supabase Postgres)]
-  React --> Edge[Supabase Edge Functions]
-  Edge --> SupabaseDB
-  Edge --> Storage[Supabase Storage]
-  Edge --> AI[Gemini / OpenRouter / Groq]
-  Edge --> Resend[Resend]
-  Edge --> PDFShift[PDFShift]
-  Edge --> Stripe[Stripe]
-  Vercel[Vercel rewrites] --> Redirect[redirect-link Edge Function]
+flowchart TD
+  Users[Candidate and recruiter browsers] --> React[React SPA]
+  Vercel[Vercel hosting and rewrites] --> React
+  Vercel --> Redirect[redirect-link Edge Function]
   Redirect --> React
+
+  React --> Auth[Supabase Auth]
+  React --> Database[(Supabase Postgres with RLS)]
+  React --> Functions[Supabase Edge Functions]
+
+  Functions --> Database
+  Functions --> Storage[Supabase Storage]
+  Functions --> AI[AI providers: Gemini, OpenRouter, Groq]
+  Functions --> Email[Resend email]
+  Functions --> PDF[PDFShift PDF generation]
+  Functions --> Payments[Stripe checkout and webhooks]
 ```
 
 The frontend is a Vite React SPA. Authenticated recruiter data is primarily read through Supabase client queries protected by RLS. Candidate assessment operations use Edge Functions and signed assessment session tokens rather than direct anonymous table writes.
@@ -265,18 +267,26 @@ The admin route requires `profiles.is_admin = true`.
 
 ## AI Evaluation Pipeline
 
+### Question Generation
+
 ```mermaid
 flowchart TD
   Start[start-assessment] --> Lock[lock_assessment_question_generation]
   Lock --> Generate[generate-questions]
   Generate --> Validate[Validate exact question shape]
   Validate --> Store[insert_questions_and_mark_ready]
+```
+
+### Evaluation & Scoring
+
+```mermaid
+flowchart TD
   Submit[submit-assessment] --> Evaluate[evaluate-responses]
   Evaluate --> MCQ[Deterministic MCQ grading]
   Evaluate --> Text[AI text-answer grading]
-  Text --> Retry{AI retry succeeded?}
-  Retry -->|yes| Score[Persist response scores]
-  Retry -->|no| Pending[pending_review + notification]
+  Text --> RetryCheck{AI retry succeeded?}
+  RetryCheck -- Yes --> Score[Persist response scores]
+  RetryCheck -- No --> Pending[pending_review and notification]
   Score --> Result[Persist results]
   Result --> Summary[generate-summary]
   Result --> Email[send-email]
