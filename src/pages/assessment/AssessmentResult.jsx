@@ -241,8 +241,8 @@ export default function AssessmentResult() {
   }, [scoreVal]);
 
   const isPassed = useMemo(() => {
-    return scoreVal !== null && scoreVal >= 70;
-  }, [scoreVal]);
+    return result?.passed ?? false;
+  }, [result]);
 
   // Processing Fallback state
   const isStillProcessing = useMemo(() => {
@@ -284,7 +284,7 @@ export default function AssessmentResult() {
       const isPurchasedParam = urlParams.get("training_purchased") === "true";
 
       // Run DB check either if candidate didn't pass OR if they just got redirected back with training_purchased=true
-      if (scoreVal !== null && (scoreVal < 70 || isPurchasedParam)) {
+      if (scoreVal !== null && (!isPassed || isPurchasedParam)) {
         await checkTrainingPurchase();
       }
 
@@ -300,7 +300,7 @@ export default function AssessmentResult() {
     if (pageStatus === "ready") {
       checkPurchaseAndCleanUrl();
     }
-  }, [assessmentId, pageStatus, scoreVal]);
+  }, [assessmentId, pageStatus, scoreVal, isPassed]);
 
   const handleBuyTrainingPlan = async () => {
     setPurchaseLoading(true);

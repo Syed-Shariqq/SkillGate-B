@@ -36,6 +36,7 @@ type TrainingDay = {
 
 type ResultRow = {
   overall_score: number | string | null;
+  passed: boolean;
   feedback_summary: string | null;
   pdf_storage_path: string | null;
   training_plan: TrainingDay[] | null;
@@ -203,6 +204,7 @@ Deno.serve(async (req: Request) => {
       .select(`
         id,
         overall_score,
+        passed,
         feedback_summary,
         pdf_storage_path,
         training_plan
@@ -249,6 +251,7 @@ Deno.serve(async (req: Request) => {
     return formatSuccess({
       status: assessment.status,
       overallScore: toNumber(result.overall_score),
+      passed: result.passed,
       feedback: result.feedback_summary,
       completedAt: assessment.completed_at,
       pdfStoragePath: result.pdf_storage_path ?? null,
