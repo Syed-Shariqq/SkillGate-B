@@ -222,13 +222,13 @@ flowchart TD
   Supabase --> Profile[profiles row]
   Signup --> Verification[send-verification-email Edge Function]
   Verification --> Email[Resend verification email]
-  Email --> Confirm[/verify-email/confirm]
+  Email --> Confirm[verify-email/confirm]
   Confirm --> RPC[verify_email_with_token RPC]
-  RPC --> Onboarding[/onboarding]
+  RPC --> Onboarding[onboarding]
   Onboarding --> Approval{account_status}
-  Approval -->|approved| Dashboard[/dashboard]
-  Approval -->|pending_approval| Pending[/pending-approval]
-  Approval -->|rejected| Rejected[/rejected]
+  Approval -->|approved| Dashboard[dashboard]
+  Approval -->|pending_approval| Pending[pending-approval]
+  Approval -->|rejected| Rejected[rejected]
 ```
 
 Protected recruiter routes require:
