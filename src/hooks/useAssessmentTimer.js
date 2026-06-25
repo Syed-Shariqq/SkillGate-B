@@ -22,6 +22,19 @@ export const useAssessmentTimer = ({ startedAt, timeLimitMinutes, onExpire, onWa
     return ((timeLimitMinutes * 60) - elapsed) <= 0
   })
 
+  const [prevStartedAt, setPrevStartedAt] = useState(startedAt)
+  const [prevTimeLimit, setPrevTimeLimit] = useState(timeLimitMinutes)
+
+  if (startedAt !== prevStartedAt || timeLimitMinutes !== prevTimeLimit) {
+    setPrevStartedAt(startedAt)
+    setPrevTimeLimit(timeLimitMinutes)
+    // eslint-disable-next-line react-hooks/purity
+    const elapsed = (Date.now() - new Date(startedAt).getTime()) / 1000
+    const newRemaining = Math.max(0, Math.floor((timeLimitMinutes * 60) - elapsed))
+    setSecondsRemaining(newRemaining)
+    setIsExpired(newRemaining <= 0)
+  }
+
   const warningFiredRef = useRef(false)
   const expireFiredRef = useRef(false)
 

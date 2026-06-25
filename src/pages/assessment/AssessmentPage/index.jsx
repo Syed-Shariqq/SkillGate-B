@@ -117,7 +117,7 @@ export default function AssessmentPage() {
         if (Array.isArray(parsed)) {
           return parsed;
         }
-      } catch (e) {
+      } catch {
         // ignore safely
       }
     }
@@ -157,6 +157,36 @@ export default function AssessmentPage() {
       savePendingQueue(filtered);
     }
   }, [getPendingQueue, savePendingQueue]);
+
+  // Do Submit Action
+  const doSubmit = useCallback(async () => {
+    if (!session?.assessmentId) return;
+    if (pendingSubmitRef.current) return;
+    pendingSubmitRef.current = true;
+
+    setIsSubmitting(true);
+
+    const { error } = await submitAssessment({
+      assessmentId: session.assessmentId,
+      sessionToken: session.sessionToken,
+    });
+
+    if (!mountedRef.current) return;
+
+    if (error) {
+      toast.error(error.message || "Failed to submit assessment");
+      setIsSubmitting(false);
+      pendingSubmitRef.current = false;
+      return;
+    }
+
+    localStorage.removeItem(`skillgate_answers_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_index_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_flags_${session.assessmentId}`);
+    localStorage.removeItem(`skillgate_pending_saves_${session.assessmentId}`);
+
+    navigate(`/assess/${token}/submitted`, { replace: true });
+  }, [session, token, navigate]);
 
   const isFlushingRef = useRef(false);
 
@@ -303,40 +333,9 @@ export default function AssessmentPage() {
     [session, enqueuePendingSave, dequeuePendingSave, getPendingQueue],
   );
 
-  // Do Submit Action
-  const doSubmit = useCallback(async () => {
-    if (!session?.assessmentId) return;
-    if (pendingSubmitRef.current) return;
-    pendingSubmitRef.current = true;
-
-    setIsSubmitting(true);
-
-    const { error } = await submitAssessment({
-      assessmentId: session.assessmentId,
-      sessionToken: session.sessionToken,
-    });
-
-    if (!mountedRef.current) return;
-
-    if (error) {
-      toast.error(error.message || "Failed to submit assessment");
-      setIsSubmitting(false);
-      pendingSubmitRef.current = false;
-      return;
-    }
-
-    localStorage.removeItem(`skillgate_answers_${session.assessmentId}`);
-    localStorage.removeItem(`skillgate_index_${session.assessmentId}`);
-    localStorage.removeItem(`skillgate_flags_${session.assessmentId}`);
-    localStorage.removeItem(`skillgate_pending_saves_${session.assessmentId}`);
-
-    navigate(`/assess/${token}/submitted`, { replace: true });
-  }, [session, token, navigate]);
-
   // Auto Submit Callback
   const handleAutoSubmit = useCallback(async () => {
     if (pendingSubmitRef.current) return;
-    pendingSubmitRef.current = true;
 
     toast("Time's up — submitting automatically", {
       duration: 4000,
@@ -345,9 +344,12 @@ export default function AssessmentPage() {
     await doSubmit();
   }, [doSubmit]);
 
+  // Stable fallback date to prevent infinite re-renders during loading phase
+  const stableFallbackDate = useMemo(() => new Date().toISOString(), []);
+
   // Timer Initialization
   const timer = useAssessmentTimer({
-    startedAt: assessmentData?.started_at || new Date().toISOString(),
+    startedAt: assessmentData?.started_at || stableFallbackDate,
     timeLimitMinutes: assessmentData?.job?.time_limit_minutes ?? 45,
     onExpire: handleAutoSubmit,
     onWarning: useCallback(() => {
@@ -421,7 +423,6 @@ export default function AssessmentPage() {
     if (unansweredCount > 0) {
       setShowSubmitModal(true);
     } else {
-      pendingSubmitRef.current = true;
       doSubmit();
     }
   }, [unansweredCount, doSubmit]);
@@ -429,7 +430,6 @@ export default function AssessmentPage() {
   const handleSubmitAnyway = useCallback(() => {
     setShowSubmitModal(false);
     if (pendingSubmitRef.current) return;
-    pendingSubmitRef.current = true;
     doSubmit();
   }, [doSubmit]);
 
@@ -445,7 +445,9 @@ export default function AssessmentPage() {
         if (Array.isArray(parsed)) {
           pendingLength = parsed.length;
         }
-      } catch (e) {}
+      } catch {
+        // ignore safely
+      }
     }
     if (pendingLength > 0) {
       flushPendingQueue(session);
@@ -457,7 +459,7 @@ export default function AssessmentPage() {
     if (!session?.assessmentId) return;
 
     setIsRestarting(true);
-    const { data, error } = await restartAssessment(session.assessmentId, session.sessionToken);
+    const { error } = await restartAssessment(session.assessmentId, session.sessionToken);
 
     if (error) {
       toast.error(error.message || "Failed to restart assessment");
@@ -616,7 +618,9 @@ export default function AssessmentPage() {
             if (Array.isArray(parsed)) {
               initialPendingLength = parsed.length;
             }
-          } catch (e) {}
+          } catch {
+            // ignore safely
+          }
         }
         setPendingCount(initialPendingLength);
 
